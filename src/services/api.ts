@@ -194,6 +194,15 @@ export const api = {
     return result;
   },
 
+  async deleteUser(id: string) {
+    const res = await fetch(`${BASE_URL}/users/${id}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete user");
+    return res.json();
+  },
+
   async getHealth() {
     const res = await fetch(`${BASE_URL}/health`);
     return res.json();
@@ -218,6 +227,25 @@ export const api = {
       body: JSON.stringify({ branchId }),
     });
     if (!res.ok) throw new Error("Failed to withdraw commissions");
+    return res.json();
+  },
+
+  async getCommissionSummary(branchId?: string) {
+    const params = new URLSearchParams();
+    if (branchId) params.append("branchId", branchId);
+    const res = await fetch(`${BASE_URL}/commissions/summary?${params.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch commission summary");
+    return res.json();
+  },
+
+  async cleanupAdjustments() {
+    const res = await fetch(`${BASE_URL}/adjustments/cleanup`, {
+        method: "POST",
+        headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to cleanup adjustments");
     return res.json();
   }
 };

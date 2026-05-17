@@ -550,6 +550,16 @@ app.patch("/api/users/:id", authenticateToken, async (req, res) => {
   }
 });
 
+app.delete("/api/users/:id", authenticateToken, async (req, res) => {
+  if ((req as any).user.role !== "ADMIN") return res.status(403).json({ error: "Forbidden" });
+  try {
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
 app.post("/api/sales/:id/refund", authenticateToken, async (req, res) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -620,6 +630,48 @@ app.post("/api/commissions/withdraw", authenticateToken, async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Failed to withdraw commissions" });
+  }
+});
+
+app.get("/api/commissions/summary", authenticateToken, async (req, res) => {
+  const { branchId } = req.query;
+  try {
+    const where: any = { status: "earned" };
+    if (branchId) where.branchId = branchId as string;
+
+    const commissions = await prisma.commission.findMany({
+      where,
+      select: {
+        amount: true,
+        branchId: true
+      }
+    });
+
+    const total = commissions.reduce((sum, c) => sum + Number(c.amount), 0);
+    const byBranch = commissions.reduce((acc: any, c) => {
+      acc[c.branchId] = (acc[c.branchId] || 0) + Number(c.amount);
+      return acc;
+    }, {});
+
+    res.json({ total, byBranch });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch commission summary" });
+  }
+});
+
+app.post("/api/adjustments/cleanup", authenticateToken, async (req, res) => {
+  if ((req as any).user.role !== "ADMIN") return res.status(403).json({ error: "Forbidden" });
+  try {
+    const result = await prisma.adjustment.deleteMany({
+      where: {
+        createdAt: {
+          lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Older than 30 days
+        }
+      }
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to cleanup adjustments" });
   }
 });
 

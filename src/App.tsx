@@ -625,6 +625,8 @@ export default function App() {
 
   // Product Form States
   const [showProductForm, setShowProductForm] = useState(false);
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [newUserDraft, setNewUserDraft] = useState({ username: "", password: "", name: "", role: "CASHIER", branchId: "" });
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerCallback, setScannerCallback] = useState<
@@ -910,17 +912,27 @@ export default function App() {
 
     const loadData = async () => {
       try {
-        const [pData, sData, cData, shData] = await Promise.all([
+        const fetchPromises: Promise<any>[] = [
           api.getProducts(),
           api.getSales({ branchId: effectiveBranchId }),
           api.getCommissions({ branchId: effectiveBranchId }),
           api.getShifts({ branchId: effectiveBranchId })
-        ]);
+        ];
+
+        if (activeMenu === "employees" && isAdmin) {
+          fetchPromises.push(api.getUsers());
+        }
+
+        const results = await Promise.all(fetchPromises);
         
-        setProducts(pData);
-        setSales(sData);
-        setCommissions(cData);
-        setShifts(shData);
+        setProducts(results[0]);
+        setSales(results[1]);
+        setCommissions(results[2]);
+        setShifts(results[3]);
+
+        if (activeMenu === "employees" && isAdmin) {
+          setUsers(results[4]);
+        }
       } catch (err) {
         console.error("Data load error:", err);
       }
@@ -947,8 +959,12 @@ export default function App() {
 
 
   const syncCommissionsSummary = async (targetBranchId?: string) => {
-    // Migrated to API
-    alert("Fungsi ini sedang dalam migrasi database.");
+    try {
+      const summary = await api.getCommissionSummary(targetBranchId);
+      setCommissionsSummary(summary);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -957,7 +973,7 @@ export default function App() {
       !auditSelectedBranch &&
       (profile?.role === "AUDIT" || profile?.role === "ADMIN")
     ) {
-      setAuditSelectedBranch(profile?.branchId || branches[0].id);
+      setAuditSelectedBranch(profile?.branchId || branches[0]?.id || "");
     }
   }, [branches, profile, auditSelectedBranch]);
 
@@ -1040,12 +1056,30 @@ export default function App() {
     )
       return;
     try {
-      await api.updateUser(uid, { status: "deleted" }); // Or actual delete if implemented
-      const [uData] = await Promise.all([api.getUsers()]);
+      await api.deleteUser(uid);
+      const uData = await api.getUsers();
       setUsers(uData);
+      alert("Karyawan berhasil dihapus.");
     } catch (err) {
       console.error(err);
       alert("Gagal menghapus karyawan.");
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserDraft.username || !newUserDraft.password || !newUserDraft.name) {
+      return alert("Mohon lengkapi data user.");
+    }
+    try {
+      await api.register(newUserDraft);
+      const uData = await api.getUsers();
+      setUsers(uData);
+      setShowUserForm(false);
+      setNewUserDraft({ username: "", password: "", name: "", role: "CASHIER", branchId: "" });
+      alert("Akun berhasil ditambahkan!");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Gagal menambah akun.");
     }
   };
 
@@ -1096,9 +1130,12 @@ export default function App() {
     if (!window.confirm("Hapus riwayat penyesuaian stok (adjustments) lama?")) return;
     
     try {
-      alert("Fitur ini sedang diperbarui ke server baru.");
-    } catch (err) {
+      await api.cleanupAdjustments();
+      alert("Riwayat penyesuaian stok berhasil dibersihkan!");
+      // Refresh adjustments if needed
+    } catch (err: any) {
       console.error(err);
+      alert(err.message || "Gagal membersihkan riwayat.");
     }
   };
 
@@ -2413,24 +2450,7 @@ export default function App() {
                       </p>
                     </div>
                     <button 
-                      onClick={() => {
-                        const username = window.prompt("Username untuk login tablet:");
-                        if (!username) return;
-                        const password = window.prompt(`Password untuk ${username}:`);
-                        if (!password) return;
-                        api.register({
-                          username,
-                          password,
-                          name: "Kasir Baru",
-                          role: "CASHIER",
-                          branchId: profile?.branchId
-                        }).then(() => {
-                           api.getUsers().then(setUsers);
-                           alert("Akun Kasir Berhasil Ditambahkan!");
-                        }).catch(e => {
-                           alert(e.message || "Gagal menambah kasir.");
-                        });
-                      }}
+                      onClick={() => setShowUserForm(true)}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded text-[10px] uppercase tracking-widest transition-all shadow-sm"
                     >
                       + Tambah Akun Login
@@ -3511,6 +3531,85 @@ export default function App() {
                             Patenkan Master Produk ke Server Sentral
                           </button>
                         </form>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* USER FORM MODAL */}
+                {showUserForm && (
+                  <div className="absolute inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+                      <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+                        <h3 className="font-black text-slate-800 uppercase tracking-tight">
+                          Tambah Akun Login Baru
+                        </h3>
+                        <button onClick={() => setShowUserForm(false)} className="text-slate-400 hover:text-red-500">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="p-6 space-y-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Username (Login)</label>
+                          <input 
+                            type="text" 
+                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={newUserDraft.username}
+                            onChange={(e) => setNewUserDraft({...newUserDraft, username: e.target.value})}
+                            placeholder="Contoh: kasir_pusat"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Password</label>
+                          <input 
+                            type="password" 
+                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={newUserDraft.password}
+                            onChange={(e) => setNewUserDraft({...newUserDraft, password: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Nama Lengkap Petugas</label>
+                          <input 
+                            type="text" 
+                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={newUserDraft.name}
+                            onChange={(e) => setNewUserDraft({...newUserDraft, name: e.target.value})}
+                            placeholder="Contoh: Budi Santoso"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Role / Hak Akses</label>
+                          <select 
+                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold uppercase tracking-widest text-[10px]"
+                            value={newUserDraft.role}
+                            onChange={(e) => setNewUserDraft({...newUserDraft, role: e.target.value})}
+                          >
+                            <option value="CASHIER">KASIR TOKO</option>
+                            <option value="ADMIN">ADMIN PUSAT</option>
+                            <option value="AUDIT">TIM AUDIT</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Penempatan Cabang</label>
+                          <select 
+                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold uppercase tracking-widest text-[10px]"
+                            value={newUserDraft.branchId}
+                            onChange={(e) => setNewUserDraft({...newUserDraft, branchId: e.target.value})}
+                          >
+                            <option value="">-- PILIH CABANG --</option>
+                            {branches.map(b => (
+                              <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <button 
+                          onClick={handleCreateUser}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded uppercase tracking-widest text-[11px] shadow-lg transition-all mt-4"
+                        >
+                          Simpan Akun Baru
+                        </button>
                       </div>
                     </div>
                   </div>
