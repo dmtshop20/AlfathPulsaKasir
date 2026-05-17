@@ -550,6 +550,79 @@ app.patch("/api/users/:id", authenticateToken, async (req, res) => {
   }
 });
 
+app.post("/api/sales/:id/refund", authenticateToken, async (req, res) => {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findUnique({
+        where: { id: req.params.id },
+        include: { items: true, commissions: true }
+      });
+
+      if (!sale) throw new Error("Sale not found");
+      if (sale.status === "refunded") throw new Error("Sale already refunded");
+
+      // 1. Update Sale Status
+      const updatedSale = await tx.sale.update({
+        where: { id: sale.id },
+        data: { status: "refunded" }
+      });
+
+      // 2. Restore Stock
+      for (const item of sale.items) {
+        await tx.productStock.upsert({
+          where: {
+            productId_branchId: {
+              productId: item.productId,
+              branchId: sale.branchId
+            }
+          },
+          update: {
+            qty: { increment: item.qty }
+          },
+          create: {
+            productId: item.productId,
+            branchId: sale.branchId,
+            qty: item.qty
+          }
+        });
+      }
+
+      // 3. Update Commissions
+      await tx.commission.updateMany({
+        where: { saleId: sale.id },
+        data: { status: "refunded", refundedAt: new Date() }
+      });
+
+      return updatedSale;
+    });
+
+    io.emit("saleUpdated", result);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Refund Sale Error:", error);
+    res.status(500).json({ error: error.message || "Failed to refund sale" });
+  }
+});
+
+app.post("/api/commissions/withdraw", authenticateToken, async (req, res) => {
+  const { branchId } = req.body;
+  try {
+    const result = await prisma.commission.updateMany({
+      where: {
+        branchId,
+        status: "earned"
+      },
+      data: {
+        status: "withdrawn",
+        withdrawnAt: new Date()
+      }
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to withdraw commissions" });
+  }
+});
+
 // Vite Middleware
 async function startApp() {
   if (process.env.NODE_ENV !== "production") {

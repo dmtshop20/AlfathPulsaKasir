@@ -197,5 +197,27 @@ export const api = {
   async getHealth() {
     const res = await fetch(`${BASE_URL}/health`);
     return res.json();
+  },
+  
+  async refundSale(id: string) {
+    const res = await fetch(`${BASE_URL}/sales/${id}/refund`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to refund sale");
+    }
+    return res.json();
+  },
+
+  async withdrawCommission(branchId: string) {
+    const res = await fetch(`${BASE_URL}/commissions/withdraw`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ branchId }),
+    });
+    if (!res.ok) throw new Error("Failed to withdraw commissions");
+    return res.json();
   }
 };

@@ -1191,8 +1191,9 @@ export default function App() {
     )
       return;
     try {
-      // Need delete endpoint in API
-      alert("Fungsi hapus sedang dalam migrasi database.");
+      await api.deleteProduct(id);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      alert("Produk berhasil dihapus!");
     } catch (err) {
       console.error(err);
       alert("Gagal menghapus produk.");
@@ -1358,8 +1359,28 @@ export default function App() {
     );
   };
 
-  const handleRefund = async (sale: any, itemIndex?: number) => {
-    alert("Refund sedang dinonaktifkan sementara karena migrasi ke server baru. Harap hubungi Admin.");
+  const handleRefund = async (sale: any) => {
+    if (sale.status === "refunded") return alert("Transaksi ini sudah di-refund.");
+    if (!window.confirm("Refund seluruh transaksi ini? Stok akan dikembalikan ke cabang.")) return;
+
+    setIsProcessingRefund(true);
+    try {
+      await api.refundSale(sale.id);
+      
+      // Update local state
+      setSales(prev => prev.map(s => s.id === sale.id ? { ...s, status: "refunded" } : s));
+      
+      // Refresh products to show updated stocks
+      const pData = await api.getProducts();
+      setProducts(pData);
+      
+      alert("Transaksi berhasil di-refund!");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Gagal melakukan refund.");
+    } finally {
+      setIsProcessingRefund(false);
+    }
   };
 
   const handleStockAdjustment = async (
@@ -1716,7 +1737,20 @@ export default function App() {
   };
 
   const handleWithdrawCommission = async (branchId: string) => {
-    alert("Proses pencairan bonus (withdraw) sedang dinonaktifkan sementara karena migrasi ke server baru. Harap hubungi Admin.");
+    if (!window.confirm("Cairkan seluruh bonus yang tersedia untuk cabang ini?")) return;
+    setIsProcessingWithdraw(true);
+    try {
+      await api.withdrawCommission(branchId);
+      // Refresh commissions
+      const cData = await api.getCommissions({ branchId });
+      setCommissions(cData);
+      alert("Bonus berhasil dicairkan!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal mencairkan bonus.");
+    } finally {
+      setIsProcessingWithdraw(false);
+    }
   };
 
   const handleCloseShift = () => {
@@ -6345,15 +6379,7 @@ export default function App() {
                                         </div>
                                         {!item.refunded &&
                                           sale.status !== "refunded" && (
-                                            <button
-                                              onClick={() =>
-                                                handleRefund(sale, idx)
-                                              }
-                                              className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                              title="Refund Item Ini"
-                                            >
-                                              <RotateCcw className="w-2.5 h-2.5" />
-                                            </button>
+                                            <div className="w-6" />
                                           )}
                                       </div>
                                     </div>
