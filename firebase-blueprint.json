@@ -1,0 +1,178 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile containing role and assigned branch.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "AUDIT", "CASHIER"] },
+        "branchId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Branch details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Master product database.",
+      "type": "object",
+      "properties": {
+        "barcode": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "buyingPrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "discountPrice": { "type": "number" },
+        "commissionAmount": { "type": "number" },
+        "stocks": { "type": "object" },
+        "minStock": { "type": "number" },
+        "expiredAt": { "type": "string" },
+        "unit": { "type": "string" }
+      },
+      "required": ["name", "sellingPrice"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Sales transaction record.",
+      "type": "object",
+      "properties": {
+        "branchId": { "type": "string" },
+        "cashierId": { "type": "string" },
+        "cashierName": { "type": "string" },
+        "customerName": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "totalCommission": { "type": "number" },
+        "status": { "type": "string", "enum": ["success", "refunded", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["branchId", "cashierId", "items", "total"]
+    },
+    "Commission": {
+      "title": "Commission",
+      "description": "Incentive earned by cashier per product sold.",
+      "type": "object",
+      "properties": {
+        "saleId": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "qty": { "type": "number" },
+        "sn": { "type": "string" },
+        "amount": { "type": "number" },
+        "cashierId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "status": { "type": "string", "enum": ["earned", "refunded", "withdrawn"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "refundedAt": { "type": "string", "format": "date-time" },
+        "withdrawnAt": { "type": "string", "format": "date-time" },
+        "withdrawnBy": { "type": "string" }
+      },
+      "required": ["saleId", "productId", "amount", "cashierId", "status"]
+    },
+    "Adjustment": {
+      "title": "Adjustment",
+      "description": "Stock changes log.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "qty": { "type": "number" },
+        "type": { "type": "string", "enum": ["STOCK_IN", "STOCK_OUT", "TRANSFER_IN", "TRANSFER_OUT"] },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "branchId", "qty", "type"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "Shift records.",
+      "type": "object",
+      "properties": {
+        "branchId": { "type": "string" },
+        "cashierId": { "type": "string" },
+        "cashierName": { "type": "string" },
+        "openTime": { "type": "string" },
+        "closeTime": { "type": "string" },
+        "initialCash": { "type": "number" },
+        "totalSales": { "type": "number" },
+        "actualCash": { "type": "number" },
+        "difference": { "type": "number" },
+        "shiftDate": { "type": "string" },
+        "shiftType": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] }
+      },
+      "required": ["branchId", "cashierId", "openTime", "status"]
+    },
+    "StockSnapshot": {
+      "title": "Stock Snapshot",
+      "description": "Capture of stock levels at a specific time (e.g. shift change).",
+      "type": "object",
+      "properties": {
+        "branchId": { "type": "string" },
+        "shiftId": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "initialQty": { "type": "number" },
+        "soldQty": { "type": "number" },
+        "finalQty": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["SHIFT_CLOSE", "AUDIT_CHECK"] }
+      },
+      "required": ["branchId", "productId", "finalQty", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles."
+    },
+    "/branches/{branchId}": {
+      "schema": { "$ref": "#/entities/Branch" },
+      "description": "Store branches."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Master products."
+    },
+    "/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "Transactions."
+    },
+    "/commissions/{commissionId}": {
+      "schema": { "$ref": "#/entities/Commission" },
+      "description": "Incentive logs."
+    },
+    "/commissions_summary/{uid}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User wallet summary."
+    },
+    "/adjustments/{adjustmentId}": {
+      "schema": { "$ref": "#/entities/Adjustment" },
+      "description": "Stock history."
+    },
+    "/shifts/{shiftId}": {
+      "schema": { "$ref": "#/entities/Shift" },
+      "description": "Shift logs."
+    },
+    "/stock_snapshots/{snapshotId}": {
+      "schema": { "$ref": "#/entities/StockSnapshot" },
+      "description": "Stock balance snapshots."
+    }
+  }
+}
+

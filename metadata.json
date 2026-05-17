@@ -1,0 +1,8 @@
+{
+  "name": "Alfath Pulsa POS",
+  "description": "Enterprise Multi-Branch POS optimized for STB deployment with Real-time synchronization (Socket.io), SQLite storage, and JWT Security.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

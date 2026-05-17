@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Role is a string: ADMIN, AUDIT, or CASHIER
+model User {
+  id               String   @id @default(uuid())
+  username         String   @unique
+  password         String
+  email            String?  @unique
+  name             String?
+  alternativeNames String?
+  role             String   @default("CASHIER")
+  branch           Branch?  @relation(fields: [branchId], references: [id])
+  branchId         String?
+  status           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  sales            Sale[]
+  commissions      Commission[]
+  shifts           Shift[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  
+  users          User[]
+  sales          Sale[]
+  adjustments    Adjustment[]
+  shifts         Shift[]
+  stockSnapshots StockSnapshot[]
+  productStocks  ProductStock[]
+  commissions    Commission[]
+  voucherSNs     VoucherSN[]
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  barcode          String?  @unique
+  name             String
+  category         String?
+  subCategory      String?
+  brand            String?
+  provider         String?
+  description      String?
+  sn               String?
+  masterSN         String?
+  buyingPrice      Float
+  sellingPrice     Float
+  discountPrice    Float?
+  commissionAmount Float    @default(0)
+  minStock         Int      @default(0)
+  expiredAt        DateTime?
+  unit             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  saleItems      SaleItem[]
+  commissions    Commission[]
+  adjustments    Adjustment[]
+  stockSnapshots StockSnapshot[]
+  stocks         ProductStock[]
+  voucherSNs     VoucherSN[]
+}
+
+model ProductStock {
+  id        String @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  branch    Branch  @relation(fields: [branchId], references: [id])
+  branchId  String
+  qty       Int     @default(0)
+
+  @@unique([productId, branchId])
+}
+
+model VoucherSN {
+  id          String   @id @default(uuid())
+  sn          String   @unique
+  product     Product  @relation(fields: [productId], references: [id])
+  productId   String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  branchId    String
+  status      String   // available, sold, refunded
+  productName String?
+  saleId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Sale {
+  id              String   @id @default(uuid())
+  branch          Branch   @relation(fields: [branchId], references: [id])
+  branchId        String
+  cashier         User     @relation(fields: [cashierId], references: [id])
+  cashierId       String
+  customerName    String?
+  total           Float
+  totalCommission Float
+  status          String   // success, refunded, cancelled
+  createdAt       DateTime @default(now())
+
+  items       SaleItem[]
+  commissions Commission[]
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  saleId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  qty       Int
+  price     Float
+  subtotal  Float
+}
+
+model Commission {
+  id          String   @id @default(uuid())
+  sale        Sale     @relation(fields: [saleId], references: [id])
+  saleId      String
+  product     Product  @relation(fields: [productId], references: [id])
+  productId   String
+  qty         Int
+  sn          String?
+  amount      Float
+  cashier     User     @relation(fields: [cashierId], references: [id])
+  cashierId   String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  branchId    String
+  status      String   // earned, refunded, withdrawn
+  createdAt   DateTime @default(now())
+  refundedAt  DateTime?
+  withdrawnAt DateTime?
+}
+
+model Adjustment {
+  id          String   @id @default(uuid())
+  product     Product  @relation(fields: [productId], references: [id])
+  productId   String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  branchId    String
+  qty         Int
+  type        String   // STOCK_IN, STOCK_OUT, TRANSFER_IN, TRANSFER_OUT
+  reason      String?
+  createdAt   DateTime @default(now())
+}
+
+model Shift {
+  id          String   @id @default(uuid())
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  branchId    String
+  cashier     User     @relation(fields: [cashierId], references: [id])
+  cashierId   String
+  openTime    DateTime @default(now())
+  closeTime   DateTime?
+  initialCash Float
+  totalSales  Float    @default(0)
+  actualCash  Float?
+  difference  Float?
+  shiftDate   String
+  shiftType   String?
+  status      String   // open, closed
+
+  stockSnapshots StockSnapshot[]
+}
+
+model StockSnapshot {
+  id          String   @id @default(uuid())
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  branchId    String
+  shift       Shift?   @relation(fields: [shiftId], references: [id])
+  shiftId     String?
+  product     Product  @relation(fields: [productId], references: [id])
+  productId   String
+  initialQty  Int
+  soldQty     Int
+  finalQty    Int
+  timestamp   DateTime @default(now())
+  type        String   // SHIFT_CLOSE, AUDIT_CHECK
+}
