@@ -401,6 +401,38 @@ app.post("/api/sales", authenticateToken, async (req, res) => {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      let finalTotalProfit = 0;
+      const saleItemsData = [];
+
+      // 1. Validate All Stocks and Collect Cost Prices First
+      for (const item of items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          include: { stocks: { where: { branchId: actualBranchId } } }
+        });
+
+        if (!product) throw new Error(`Produk dengan ID ${item.productId} tidak ditemukan.`);
+        
+        const currentStock = product.stocks[0]?.qty || 0;
+        if (currentStock < item.qty) {
+          throw new Error(`Stok tidak cukup untuk ${product.name}. Tersedia: ${currentStock}, Diminta: ${item.qty}`);
+        }
+
+        const costPrice = Number(product.buyingPrice || 0);
+        const itemProfit = (item.price * item.qty) - (costPrice * item.qty) - (item.commission || 0);
+        finalTotalProfit += itemProfit;
+
+        saleItemsData.push({
+          productId: item.productId,
+          qty: item.qty,
+          price: item.price,
+          costPrice: costPrice,
+          subtotal: item.subtotal,
+          sn: item.sn || product.masterSN || null
+        });
+      }
+
+      // 2. Create the Sale
       const sale = await tx.sale.create({
         data: {
           branchId: actualBranchId,
@@ -408,59 +440,47 @@ app.post("/api/sales", authenticateToken, async (req, res) => {
           customerName,
           total,
           totalCommission,
+          totalProfit: finalTotalProfit,
           status: "success",
           items: {
-            create: items.map((item: any) => ({
-              productId: item.productId,
-              qty: item.qty,
-              price: item.price,
-              subtotal: item.subtotal
-            }))
+            create: saleItemsData
           }
         },
         include: { items: true }
       });
 
-      // Update Stocks
-      for (const item of items) {
-        await tx.productStock.upsert({
+      // 3. Update Stocks & Commissions
+      for (const item of saleItemsData) {
+        await tx.productStock.update({
           where: {
             productId_branchId: {
               productId: item.productId,
               branchId: actualBranchId
             }
           },
-          update: {
+          data: {
             qty: { decrement: item.qty }
-          },
-          create: {
-            productId: item.productId,
-            branchId: actualBranchId,
-            qty: -item.qty
           }
         });
-      }
 
-      // Add Commission Records and Update User Bonus Balance
-      if (items.some((i: any) => i.commission > 0)) {
-        for (const item of items) {
-          if (item.commission && item.commission > 0) {
-            await tx.commission.create({
-              data: {
-                saleId: sale.id,
-                productId: item.productId,
-                qty: item.qty,
-                amount: item.commission,
-                cashierId: actualCashierId,
-                branchId: actualBranchId,
-                status: "earned"
-              }
-            });
-          }
+        if (item.productId && (req.body.items.find((i:any) => i.productId === item.productId)?.commission || 0) > 0) {
+          const commAmt = req.body.items.find((i:any) => i.productId === item.productId).commission;
+          await tx.commission.create({
+            data: {
+              saleId: sale.id,
+              productId: item.productId,
+              qty: item.qty,
+              amount: commAmt,
+              cashierId: actualCashierId,
+              branchId: actualBranchId,
+              status: "earned",
+              sn: item.sn
+            }
+          });
         }
       }
 
-      // Automatically increment user's bonus balance
+      // 4. Update User Bonus Balance
       if (totalCommission > 0) {
         await tx.user.update({
           where: { id: actualCashierId },
@@ -480,9 +500,7 @@ app.post("/api/sales", authenticateToken, async (req, res) => {
     res.json(result);
   } catch (error: any) {
     console.error("Sale Process Error:", error);
-    if (error.code) console.error("Prisma Error Code:", error.code);
-    if (error.meta) console.error("Prisma Error Meta:", JSON.stringify(error.meta));
-    res.status(500).json({ error: "Failed to process sale: " + (error.message || "Unknown") });
+    res.status(400).json({ error: error.message || "Gagal memproses penjualan" });
   }
 });
 

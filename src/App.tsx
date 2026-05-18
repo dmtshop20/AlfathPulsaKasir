@@ -1974,10 +1974,11 @@ export default function App() {
         const recalculated = todaySales.reduce((acc, s) => {
             acc.revenue += (s.total || 0);
             
+            // Prefer pre-calculated profit for maximum accuracy
             let currentProfit = s.totalProfit;
             if (currentProfit === undefined) {
+                // Calculation fallback for older records
                 const capital = (s.items || []).reduce((sum: number, it: any) => {
-                    // Correcting ID lookup to use productId (from server) or id (from client draft)
                     const pid = it.productId || it.id;
                     const pPrice = it.purchasePrice !== undefined ? it.purchasePrice : (productMap.get(pid) as any)?.buyingPrice || 0;
                     return sum + (Number(pPrice) * Number(it.qty || 0));
@@ -5831,6 +5832,7 @@ export default function App() {
                                     </p>
                                     <h4 className="text-[10px] md:text-xs font-black uppercase leading-tight line-clamp-2">
                                       {p.name}
+                                      {p.masterSN && <span className="block text-[8px] text-emerald-300 font-bold mt-1">SN: {p.masterSN}</span>}
                                     </h4>
                                   </div>
                                   <div className="flex items-center justify-between mt-3">
@@ -6171,6 +6173,7 @@ export default function App() {
                                         <div>
                                           <p className="text-[11px] font-black uppercase tracking-tight leading-none text-left">
                                             {p.name}
+                                            {p.masterSN && <span className="ml-1.5 text-purple-600 group-hover:text-purple-200">({p.masterSN})</span>}
                                           </p>
                                           <p className="text-[8px] font-black text-blue-600 mt-1 bg-blue-50 px-1 py-0.5 rounded leading-none group-hover:bg-white/10 group-hover:text-blue-100 uppercase text-left">
                                             Stok:{" "}
@@ -6603,6 +6606,7 @@ export default function App() {
                                     <div className="min-w-0 flex-1">
                                       <p className="text-[9px] font-black uppercase truncate text-slate-800 leading-tight">
                                         {p.name}
+                                        {p.masterSN && <span className="block text-[7px] text-blue-500 font-bold mt-0.5">SN: {p.masterSN}</span>}
                                       </p>
                                       <div className="flex items-center justify-between mt-1">
                                          <p className="text-[9px] font-bold text-blue-600">

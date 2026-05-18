@@ -110,6 +110,7 @@ model Sale {
   customerName    String?
   total           Float
   totalCommission Float
+  totalProfit     Float    @default(0)
   status          String   // success, refunded, cancelled
   createdAt       DateTime @default(now())
 
@@ -124,7 +125,8 @@ model SaleItem {
   product   Product @relation(fields: [productId], references: [id])
   productId String
   qty       Int
-  price     Float
+  price     Float   // Selling price at time of sale
+  costPrice Float   // Buying price at time of sale
   subtotal  Float
   sn        String?
 }

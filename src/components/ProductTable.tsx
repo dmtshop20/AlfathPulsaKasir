@@ -45,7 +45,13 @@ export const ProductTable = ({
                   </tr>
                   {group.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3"><p className="font-bold text-slate-800">{p.name}</p><p className="text-[10px] font-mono text-slate-500 mt-0.5">{p.barcode}</p></td>
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-slate-800">{p.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-[10px] font-mono text-slate-500">{p.barcode}</p>
+                          {p.masterSN && <p className="text-[10px] font-black text-purple-600 bg-purple-50 px-1 rounded uppercase">M-SN: {p.masterSN}</p>}
+                        </div>
+                      </td>
                       <td className="px-4 py-3"><div className="flex flex-col gap-1 items-start"><span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border ${p.category === 'Voucher' || p.category?.includes('Perdana') ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>{p.category === 'Voucher' || p.category?.includes('Perdana') ? <Wifi className="w-3 h-3"/> : <Smartphone className="w-3 h-3"/>}{p.brand ? p.brand : p.provider ? p.provider : p.category}</span>{p.description && <p className="text-[9px] text-slate-400 font-medium max-w-[200px] truncate">{p.description}</p>}</div></td>
                       <td className="px-4 py-3 text-right font-medium text-slate-500 text-xs">Rp {p.purchasePrice?.toLocaleString('id-ID')}</td>
                       <td className="px-4 py-3 text-right"><span className="font-bold text-blue-600">Rp {p.sellingPrice?.toLocaleString('id-ID')}</span>{p.discountPrice > 0 && <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase">Promo: Rp {p.discountPrice.toLocaleString('id-ID')}</p>}</td>
