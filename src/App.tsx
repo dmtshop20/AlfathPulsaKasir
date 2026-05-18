@@ -950,10 +950,12 @@ export default function App() {
 
     const loadData = async () => {
       try {
-        const [pData, sData, cData, shData, uData, aData] = await Promise.all([
-          api.getProducts().catch(e => { console.error("Products Load Error:", e); return products; }),
-          api.getSales({ branchId: effectiveBranchId }).catch(e => { console.error("Sales Load Error:", e); return sales; }),
-          api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; }),
+        // Memuat sebagian secara parallel, sebagian berurutan agar tidak overload koneksi
+        const pData = await api.getProducts().catch(e => { console.error("Products Load Error:", e); return products; });
+        const sData = await api.getSales({ branchId: effectiveBranchId }).catch(e => { console.error("Sales Load Error:", e); return sales; });
+        const cData = await api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; });
+        
+        const [shData, uData, aData] = await Promise.all([
           api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
           api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
           api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; })

@@ -10,14 +10,29 @@ const getHeaders = () => {
 
 export const api = {
   async login(credentials: any) {
-    const res = await fetch(`${BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(credentials),
-    });
+    let res;
+    try {
+      res = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
+    } catch (e: any) {
+      throw new Error("Network Error: " + e.message);
+    }
+    
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Login gagal");
+      let errTxt = "";
+      try {
+        errTxt = await res.text();
+        const errObj = JSON.parse(errTxt);
+        throw new Error(errObj.error || "Login gagal");
+      } catch (e: any) {
+        if (e.message.includes("Login gagal") || (errTxt && errTxt.includes("error"))) {
+            throw e; // rethrow the actual parsed error
+        }
+        throw new Error(`Login error ${res.status}: ` + errTxt);
+      }
     }
     const data = await res.json();
     localStorage.setItem("token", data.token);
@@ -45,7 +60,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/auth/me`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Unauthorized");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Unauthorized: ${res.status} ${txt}`); }
     const data = await res.json();
     if (data) data.uid = data.id;
     return data;
@@ -55,7 +70,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/products`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch products");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch products: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -65,7 +80,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to create product");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to create product: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -74,7 +89,7 @@ export const api = {
       method: "DELETE",
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to delete product");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to delete product: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -84,7 +99,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to adjust stock");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to adjust stock: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -107,7 +122,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to save vouchers");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to save vouchers: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -115,7 +130,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/branches`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch branches");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch branches: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -125,7 +140,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to create sale");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to create sale: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -134,7 +149,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/sales?${query}`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch sales");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch sales: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -143,7 +158,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/commissions?${query}`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch commissions");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch commissions: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -152,7 +167,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/shifts?${query}`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch shifts");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch shifts: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -162,7 +177,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to open shift");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to open shift: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -172,7 +187,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to update shift");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to update shift: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -180,7 +195,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/users`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch users");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch users: ${res.status} ${txt}`); }
     const data = await res.json();
     return data.map((u: any) => ({ ...u, uid: u.id }));
   },
@@ -191,7 +206,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to update user");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to update user: ${res.status} ${txt}`); }
     const result = await res.json();
     if (result) result.uid = result.id;
     return result;
@@ -202,7 +217,7 @@ export const api = {
       method: "DELETE",
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to delete user");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to delete user: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -229,7 +244,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify({ branchId }),
     });
-    if (!res.ok) throw new Error("Failed to withdraw commissions");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to withdraw commissions: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -239,7 +254,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/commissions/summary?${params.toString()}`, {
         headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch commission summary");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch commission summary: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -247,7 +262,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/adjustments`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch adjustments");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch adjustments: ${res.status} ${txt}`); }
     return res.json();
   },
 
@@ -256,7 +271,7 @@ export const api = {
         method: "POST",
         headers: getHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to cleanup adjustments");
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to cleanup adjustments: ${res.status} ${txt}`); }
     return res.json();
   }
 };
