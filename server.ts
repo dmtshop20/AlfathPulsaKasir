@@ -100,14 +100,17 @@ app.post("/api/auth/login", async (req, res) => {
     });
 
     if (!user) {
+      console.log(`❌ Login failed: User "${cleanUsername}" not found.`);
       return res.status(401).json({ error: "User not found" });
     }
 
     const isMatch = await bcrypt.compare(cleanPassword, user.password);
     if (!isMatch) {
+      console.log(`❌ Login failed: Invalid password for user "${cleanUsername}".`);
       return res.status(401).json({ error: "Invalid password" });
     }
 
+    console.log(`✅ Login successful: User "${cleanUsername}" logged in.`);
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role, branchId: user.branchId },
       JWT_SECRET,
@@ -785,7 +788,9 @@ async function startApp() {
             { username: "cashier", password: pHash2, name: "Kasir 1", role: "CASHIER", branchId: branch.id, status: "Active" }
           ]
         });
-        console.log("✅ Auto-seed complete! Users created: admin (pw: admin123) and cashier (pw: cashier)");
+        console.log("✅ Auto-seed complete! New Users: admin (pw: admin123) and cashier (pw: cashier)");
+      } else {
+        console.log(`ℹ️ Database already has ${userCount} users. Auto-seed skipped. Using existing credentials.`);
       }
     } catch (dbErr: any) {
       console.error("ℹ️ Auto-seed check skipped or failed:", dbErr.message);
@@ -795,8 +800,12 @@ async function startApp() {
     console.error("❌ Database connection failed!");
     console.error("Error details:", error.message);
     console.log("Tip: Check if DATABASE_URL is set correctly in Railway variables.");
-    // We continue so the server doesn't crash, but API calls will fail until fixed
   }
+
+  // Health check for Railway at root level
+  app.get("/", (req, res) => {
+    res.status(200).send("OK - Alfath Pulsa Server is running");
+  });
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
