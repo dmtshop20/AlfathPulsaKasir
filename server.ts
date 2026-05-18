@@ -722,6 +722,18 @@ app.post("/api/adjustments/cleanup", authenticateToken, async (req, res) => {
 
 // Vite Middleware
 async function startApp() {
+  // Test Database Connection before starting
+  console.log("Checking database connection...");
+  try {
+    await prisma.$connect();
+    console.log("✅ Database connection established.");
+  } catch (error: any) {
+    console.error("❌ Database connection failed!");
+    console.error("Error details:", error.message);
+    console.log("Tip: Check if DATABASE_URL is set correctly in Railway variables.");
+    // We continue so the server doesn't crash, but API calls will fail until fixed
+  }
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
