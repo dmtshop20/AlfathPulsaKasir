@@ -950,25 +950,23 @@ export default function App() {
 
     const loadData = async () => {
       try {
-        const fetchPromises: any[] = [
-          api.getProducts(),
-          api.getSales({ branchId: effectiveBranchId }),
-          api.getCommissions({ branchId: effectiveBranchId }),
-          api.getShifts({ branchId: effectiveBranchId }),
-          api.getUsers(), // Always fetch users to handle personnel selection in shifts
-          api.getAdjustments()
-        ];
-
-        const res = await Promise.all(fetchPromises);
+        const [pData, sData, cData, shData, uData, aData] = await Promise.all([
+          api.getProducts().catch(e => { console.error("Products Load Error:", e); return products; }),
+          api.getSales({ branchId: effectiveBranchId }).catch(e => { console.error("Sales Load Error:", e); return sales; }),
+          api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; }),
+          api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
+          api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
+          api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; })
+        ]);
         
-        setProducts(res[0]);
-        setSales(res[1]);
-        setCommissions(res[2]);
-        setShifts(res[3]);
-        setUsers(res[4]);
-        setAdjustments(res[5]);
+        setProducts(pData);
+        setSales(sData);
+        setCommissions(cData);
+        setShifts(shData);
+        setUsers(uData);
+        setAdjustments(aData);
       } catch (err) {
-        console.error("Data load error:", err);
+        console.error("General data load error:", err);
       }
     };
 

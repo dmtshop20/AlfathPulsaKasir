@@ -308,20 +308,48 @@ app.get("/api/sales", authenticateToken, async (req, res) => {
   try {
     const where: any = {};
     if (branchId) where.branchId = branchId as string;
+    
     if (startDate || endDate) {
       where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate as string);
-      if (endDate) where.createdAt.lte = new Date(endDate as string);
+      if (startDate && startDate !== "undefined" && startDate !== "null") {
+        const d = new Date(startDate as string);
+        if (!isNaN(d.getTime())) where.createdAt.gte = d;
+      }
+      if (endDate && endDate !== "undefined" && endDate !== "null") {
+        const d = new Date(endDate as string);
+        if (!isNaN(d.getTime())) where.createdAt.lte = d;
+      }
+      // Cleanup if no valid dates were added
+      if (Object.keys(where.createdAt).length === 0) delete where.createdAt;
     }
+
     const sales = await prisma.sale.findMany({
       where,
-      include: { items: { include: { product: true } }, cashier: true, branch: true },
+      include: { 
+        items: { 
+          include: { 
+            product: true 
+          } 
+        }, 
+        cashier: true, 
+        branch: true 
+      },
       orderBy: { createdAt: "desc" }
     });
     res.json(sales);
   } catch (error: any) {
-    console.error("Fetch Sales Error:", error);
-    res.status(500).json({ error: "Failed to fetch sales: " + (error?.message || "Unknown") });
+    console.error("Fetch Sales Error [Full]:", {
+      code: error.code,
+      meta: error.meta,
+      message: error.message,
+      stack: error.stack,
+      query: { branchId, startDate, endDate }
+    });
+    res.status(500).json({ 
+      error: "Failed to fetch sales", 
+      details: error?.message,
+      code: error?.code 
+    });
   }
 });
 
