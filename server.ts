@@ -19,7 +19,7 @@ const io = new Server(httpServer, {
   }
 });
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "alfath-secret-key-123";
 
 app.use(cors());
@@ -108,7 +108,7 @@ app.post("/api/auth/login", async (req, res) => {
     res.json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error("Login Error:", error);
-    res.status(500).json({ error: "Authentication failed" });
+    res.status(500).json({ error: "Authentication failed. Server Error: " + (error as any).message });
   }
 });
 
