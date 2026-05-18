@@ -884,11 +884,6 @@ async function startApp() {
     console.log("Tip: Check if DATABASE_URL is set correctly in Railway variables.");
   }
 
-  // Health check for Railway at root level
-  app.get("/", (req, res) => {
-    res.status(200).send("OK - Alfath Pulsa Server is running");
-  });
-
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
