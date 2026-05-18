@@ -26,7 +26,7 @@ const io = new Server(httpServer, {
   }
 });
 
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "alfath-secret-key-123";
 
 app.use(cors());
@@ -837,53 +837,19 @@ app.post("/api/adjustments/cleanup", authenticateToken, async (req, res) => {
 });
 
 // Vite Middleware
-async function startApp() {
-  // Test Database Connection before starting
-  console.log("Checking database connection...");
-  try {
-    await prisma.$connect();
-    console.log("✅ Database connection established.");
-    
-    // Ensure base credentials exist (Ensures admin/admin123 always works)
-    try {
-      const pHashAdmin = await bcrypt.hash("admin123", 10);
-      const pHashCashier = await bcrypt.hash("cashier123", 10);
-      
-      const defaultBranchId = "default-branch-id";
-      const branch = await prisma.branch.upsert({
-        where: { id: defaultBranchId },
-        update: {},
-        create: {
-          id: defaultBranchId,
-          name: "Cabang Utama",
-          address: "Cianjur",
-          phone: "0812"
-        }
-      });
-      
-      await prisma.user.upsert({
-        where: { username: "admin" },
-        update: { password: pHashAdmin, status: "Active", role: "ADMIN" },
-        create: { username: "admin", password: pHashAdmin, name: "Super Admin", role: "ADMIN", branchId: branch.id, status: "Active" }
-      });
+async function startServer() {
+  // 1. Try to connect to DB in background
+  prisma.$connect()
+    .then(() => {
+      console.log("✅ Database connection established.");
+      // Credentials sync logic
+      syncCredentials();
+    })
+    .catch((error) => {
+      console.error("❌ Database connection failed at startup:", error.message);
+    });
 
-      await prisma.user.upsert({
-        where: { username: "cashier" },
-        update: { password: pHashCashier, status: "Active", role: "CASHIER" },
-        create: { username: "cashier", password: pHashCashier, name: "Kasir Toko", role: "CASHIER", branchId: branch.id, status: "Active" }
-      });
-
-      console.log("✅ Credentials synchronized: admin (pw: admin123) and cashier (pw: cashier123)");
-    } catch (dbErr: any) {
-      console.error("ℹ️ User synchronization check skipped or failed:", dbErr.message);
-    }
-
-  } catch (error: any) {
-    console.error("❌ Database connection failed!");
-    console.error("Error details:", error.message);
-    console.log("Tip: Check if DATABASE_URL is set correctly in Railway variables.");
-  }
-
+  // 2. Vite Middleware
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -898,10 +864,46 @@ async function startApp() {
     });
   }
 
+  // 3. Start Listening
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT} with Socket.IO enabled`);
   });
 }
 
-startApp();
+async function syncCredentials() {
+  try {
+    const pHashAdmin = await bcrypt.hash("admin123", 10);
+    const pHashCashier = await bcrypt.hash("cashier123", 10);
+    
+    const defaultBranchId = "default-branch-id";
+    const branch = await prisma.branch.upsert({
+      where: { id: defaultBranchId },
+      update: {},
+      create: {
+        id: defaultBranchId,
+        name: "Cabang Utama",
+        address: "Cianjur",
+        phone: "0812"
+      }
+    });
+    
+    await prisma.user.upsert({
+      where: { username: "admin" },
+      update: { password: pHashAdmin, status: "Active", role: "ADMIN" },
+      create: { username: "admin", password: pHashAdmin, name: "Super Admin", role: "ADMIN", branchId: branch.id, status: "Active" }
+    });
+
+    await prisma.user.upsert({
+      where: { username: "cashier" },
+      update: { password: pHashCashier, status: "Active", role: "CASHIER" },
+      create: { username: "cashier", password: pHashCashier, name: "Kasir Toko", role: "CASHIER", branchId: branch.id, status: "Active" }
+    });
+
+    console.log("✅ Credentials synchronized: admin (pw: admin123) and cashier (pw: cashier123)");
+  } catch (dbErr: any) {
+    console.error("ℹ️ User synchronization check failed:", dbErr.message);
+  }
+}
+
+startServer();
 
