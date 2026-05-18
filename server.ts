@@ -89,13 +89,23 @@ app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
   const cleanUsername = username?.trim().toLowerCase();
   const cleanPassword = password?.trim();
+  
+  if (!cleanUsername || !cleanPassword) {
+    return res.status(400).json({ error: "Username and password are required" });
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { username: cleanUsername }
     });
 
-    if (!user || !(await bcrypt.compare(cleanPassword, user.password))) {
-      return res.status(401).json({ error: "Invalid username or password" });
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(cleanPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid password" });
     }
 
     const token = jwt.sign(
