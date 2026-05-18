@@ -2055,9 +2055,14 @@ export default function App() {
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter mb-2 uppercase">
             Alfath Pulsa POS
           </h1>
-          <p className="text-[10px] md:text-xs font-bold text-slate-400 mb-8 uppercase tracking-[0.2em]">
+          <p className="text-[10px] md:text-xs font-bold text-slate-400 mb-4 uppercase tracking-[0.2em]">
             Enterprise Multi-Branch System
           </p>
+          <div className="bg-amber-50 rounded-xl p-2 mb-6 border border-amber-200">
+             <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
+               Debug Build: 2026-05-18 v4
+             </p>
+          </div>
           
           <form 
             onSubmit={(e) => {
@@ -2093,15 +2098,28 @@ export default function App() {
             >
               Masuk ke Sistem <ArrowRight className="w-4 h-4" />
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleLoginSubmit({ username: "admin", password: "magicpulsa" })}
-              className="w-full border-2 border-dashed border-slate-200 text-slate-400 font-bold py-3 px-4 rounded-2xl hover:bg-slate-50 transition text-[10px] uppercase tracking-widest mt-4"
-            >
-              Bypass Login (Debug Mode)
-            </button>
           </form>
+
+          <div className="mt-6 flex flex-col gap-3">
+             <button
+                type="button"
+                onClick={() => handleLoginSubmit({ username: "admin", password: "magicpulsa" })}
+                className="w-full bg-orange-600 text-white font-black py-4 px-4 rounded-2xl hover:bg-orange-700 transition shadow-xl shadow-orange-200 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em]"
+              >
+                BYPASS LOGIN (DEBUG) <Zap className="w-4 h-4 fill-white" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                   localStorage.clear();
+                   window.location.reload();
+                }}
+                className="w-full border-2 border-slate-200 text-slate-500 font-bold py-3 px-4 rounded-2xl hover:bg-slate-50 transition text-[10px] uppercase tracking-widest"
+              >
+                Bersihkan Cache & Refresh
+              </button>
+          </div>
 
           <div className="mt-10 pt-6 border-t border-slate-100">
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
