@@ -41,6 +41,22 @@ export const api = {
     return data;
   },
 
+  async loginWithGoogle(idToken: string) {
+    const res = await fetch(`${BASE_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Login Google gagal");
+    }
+    const data = await res.json();
+    localStorage.setItem("token", data.token);
+    if (data.user) data.user.uid = data.user.id;
+    return data;
+  },
+
   async register(data: any) {
     const res = await fetch(`${BASE_URL}/auth/register`, {
       method: "POST",

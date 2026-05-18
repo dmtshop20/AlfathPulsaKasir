@@ -60,10 +60,12 @@ import {
   Info,
   ArrowRight,
   History as HistoryIcon,
+  Zap,
+  Mail,
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { io } from "socket.io-client";
-import { auth, db } from "./lib/firebase";
+import { auth, db, signInWithGoogle } from "./lib/firebase";
 import { 
   query, 
   collection, 
@@ -900,6 +902,26 @@ export default function App() {
       else if (userData.role === "CASHIER") setActiveMenu("pos");
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setAuthLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      const idToken = await result.user.getIdToken();
+      const { user: userData } = await api.loginWithGoogle(idToken);
+      setProfile(userData);
+      const [bData, pData] = await Promise.all([api.getBranches(), api.getProducts()]);
+      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
+      setProducts(pData);
+      if (userData.role === "ADMIN") setActiveMenu("dashboard");
+      else if (userData.role === "AUDIT") setActiveMenu("audit");
+      else if (userData.role === "CASHIER") setActiveMenu("pos");
+    } catch (err: any) {
+      alert("Google Login Error: " + err.message);
     } finally {
       setAuthLoading(false);
     }
@@ -2064,49 +2086,65 @@ export default function App() {
              </p>
           </div>
           
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              handleLoginSubmit(Object.fromEntries(formData));
-            }}
-            className="space-y-4 text-left"
-          >
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Username</label>
-              <input 
-                name="username"
-                type="text" 
-                required
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
-                placeholder="Masukkan Username"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Password</label>
-              <input 
-                name="password"
-                type="password" 
-                required
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white font-black py-4 px-4 rounded-2xl hover:bg-blue-700 transition shadow-xl shadow-blue-200 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] mt-8"
-            >
-              Masuk ke Sistem <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+          <div className="mt-8 flex flex-col gap-4">
+             <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="w-full bg-slate-900 text-white font-black py-4 px-4 rounded-2xl hover:bg-slate-800 transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Mail className="w-4 h-4" /> Masuk Dengan Google
+              </button>
 
-          <div className="mt-6 flex flex-col gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                <div className="relative flex justify-center text-[8px] uppercase tracking-[0.3em] font-black"><span className="bg-white px-4 text-slate-300">Atau Gunakan Akun Toko</span></div>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  handleLoginSubmit(Object.fromEntries(formData));
+                }}
+                className="space-y-4 text-left"
+              >
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Username</label>
+                  <input 
+                    name="username"
+                    type="text" 
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                    placeholder="Masukkan Username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                  <input 
+                    name="password"
+                    type="password" 
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white font-black py-4 px-4 rounded-2xl hover:bg-blue-700 transition shadow-xl shadow-blue-200 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] mt-4"
+                >
+                  Masuk ke Sistem <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-slate-50 flex flex-col gap-3">
              <button
                 type="button"
                 onClick={() => handleLoginSubmit({ username: "admin", password: "magicpulsa" })}
-                className="w-full bg-orange-600 text-white font-black py-4 px-4 rounded-2xl hover:bg-orange-700 transition shadow-xl shadow-orange-200 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em]"
+                className="w-full bg-amber-500/10 text-amber-600 font-black py-3 px-4 rounded-2xl hover:bg-amber-500/20 transition flex items-center justify-center gap-3 text-[10px] uppercase tracking-widest border border-amber-200 border-dashed"
               >
-                BYPASS LOGIN (DEBUG) <Zap className="w-4 h-4 fill-white" />
+                <Zap className="w-3 h-3 fill-amber-600" /> Bypass Debug
               </button>
 
               <button
@@ -2115,9 +2153,9 @@ export default function App() {
                    localStorage.clear();
                    window.location.reload();
                 }}
-                className="w-full border-2 border-slate-200 text-slate-500 font-bold py-3 px-4 rounded-2xl hover:bg-slate-50 transition text-[10px] uppercase tracking-widest"
+                className="w-full text-slate-400 font-bold py-2 px-4 rounded-2xl hover:bg-slate-50 transition text-[8px] uppercase tracking-widest"
               >
-                Bersihkan Cache & Refresh
+                Clear Cache & Force Reload
               </button>
           </div>
 

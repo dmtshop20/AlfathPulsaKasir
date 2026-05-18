@@ -5,10 +5,17 @@ import helmet from "helmet";
 import morgan from "morgan";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import admin from "firebase-admin";
 import { PrismaClient } from "@prisma/client";
 import { createServer as createViteServer } from "vite";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import firebaseConfig from "./firebase-applet-config.json" assert { type: "json" };
+
+// Initialize Firebase Admin
+admin.initializeApp({
+  projectId: firebaseConfig.projectId,
+});
 
 const prisma = new PrismaClient();
 const app = express();
@@ -130,6 +137,66 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (error) {
     console.error("Login Error:", error);
     res.status(500).json({ error: "Authentication failed. Server Error: " + (error as any).message });
+  }
+});
+
+app.post("/api/auth/google", async (req, res) => {
+  const { idToken } = req.body;
+  if (!idToken) return res.status(400).json({ error: "No token provided" });
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const email = decodedToken.email;
+    if (!email) return res.status(400).json({ error: "Email not verified in Google account" });
+
+    let user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    // If not found by email, check by username (maybe someone registered with username=email)
+    if (!user) {
+      user = await prisma.user.findUnique({
+        where: { username: email.split('@')[0] }
+      });
+    }
+
+    const isAuthorizedEmail = email.toLowerCase() === "dmtshop20@gmail.com";
+
+    if (!user) {
+      // Create new user for authorized email or if user is new
+      const defaultBranch = await prisma.branch.findFirst();
+      user = await prisma.user.create({
+        data: {
+          username: email.split('@')[0],
+          email: email,
+          name: decodedToken.name || email.split('@')[0],
+          password: await bcrypt.hash(Math.random().toString(36), 10), // Random password
+          role: isAuthorizedEmail ? "ADMIN" : "CASHIER",
+          branchId: defaultBranch?.id || null,
+          status: "Active"
+        }
+      });
+      console.log(`✨ New user created via Google: ${email} (${user.role})`);
+    } else if (isAuthorizedEmail && user.role !== "ADMIN") {
+      // Ensure the "paten" email is always ADMIN
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: "ADMIN", status: "Active" }
+      });
+      console.log(`✨ User ${email} promoted to ADMIN via Google Login.`);
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: user.role, branchId: user.branchId },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword, token });
+  } catch (error: any) {
+    console.error("Google Login Error:", error);
+    res.status(401).json({ error: "Authentication failed: " + error.message });
   }
 });
 

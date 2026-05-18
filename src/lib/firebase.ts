@@ -1,26 +1,19 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
-import firebaseConfig from './firebaseConfig';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-
-// Modern Way to Enable Offline Persistence
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({}), // Default back to single tab synchronization to prevent lease errors in sandboxed environments
-  experimentalAutoDetectLongPolling: true
-}, firebaseConfig.firestoreDatabaseId);
-
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
-export const loginWithGoogle = async () => {
-  const provider = new GoogleAuthProvider();
+export const signInWithGoogle = async () => {
   try {
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, googleProvider);
+    return result;
   } catch (error) {
-    console.error("Login failed:", error);
+    console.error("Firebase Login Error:", error);
     throw error;
   }
 };
-
-export const logout = () => signOut(auth);
