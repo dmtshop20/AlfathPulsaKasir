@@ -28,6 +28,7 @@ import {
   Bell,
   RefreshCw,
   User,
+  Key,
   RotateCcw,
   ShoppingCart,
   X,
@@ -58,6 +59,7 @@ import {
   Menu,
   Info,
   ArrowRight,
+  History as HistoryIcon,
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { io } from "socket.io-client";
@@ -297,6 +299,9 @@ export default function App() {
 
   // Firestore Data States
   const [users, setUsers] = useState<any[]>([]);
+  const [resetUser, setResetUser] = useState<any | null>(null);
+  const [newPassInput, setNewPassInput] = useState("");
+  const [isUpdatingPass, setIsUpdatingPass] = useState(false);
   const [branches, setBranches] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
@@ -413,14 +418,29 @@ export default function App() {
     }
   };
 
-  const [stocks, setStocks] = useState<any[]>([]);
+  const stocks = useMemo(() => {
+    const result: any[] = [];
+    products.forEach((p) => {
+      if (p.stocks) {
+        Object.entries(p.stocks).forEach(([branchId, qty]) => {
+          result.push({
+            id: `${branchId}_${p.id}`,
+            productId: p.id,
+            branchId,
+            qty: qty,
+          });
+        });
+      }
+    });
+    return result;
+  }, [products]);
   const [sales, setSales] = useState<any[]>([]);
   const [hasMoreSales, setHasMoreSales] = useState(true);
   const [lastSalesDoc, setLastSalesDoc] = useState<any>(null);
   const SALES_PAGE_SIZE = 100;
   const [voucherSNs, setVoucherSNs] = useState<any[]>([]);
   const [appConfig, setAppConfig] = useState<any>({
-    allowCashierStockInput: false,
+    allowCashierStockInput: true,
   });
   const [adjustments, setAdjustments] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
@@ -446,7 +466,7 @@ export default function App() {
     | "incentive"
   >("dashboard");
   const [auditSidebarTab, setAuditSidebarTab] = useState<
-    "incoming" | "disposal" | "transfer"
+    "incoming" | "disposal" | "transfer" | "logs"
   >("incoming");
   const [auditProductSearch, setAuditProductSearch] = useState("");
   const [auditSelectedProductId, setAuditSelectedProductId] = useState("");
@@ -896,12 +916,25 @@ export default function App() {
 
   // --- DATA SYNC (Stocks, Sales, Summaries, etc.) ---
   // Reacts only to filter changes, not every menu click
+  const shopListAlertCount = useMemo(() => {
+    if (profile?.role !== "ADMIN") return 0;
+    let alertCount = 0;
+    products.forEach((p) => {
+      if (p.minStock > 0) {
+        branches.forEach((b) => {
+          const s = stocks.find(st => st.branchId === b.id && st.productId === p.id);
+          if ((s ? s.qty : 0) <= p.minStock) alertCount++;
+        });
+      }
+    });
+    return alertCount;
+  }, [products, branches, stocks, profile]);
+
   useEffect(() => {
     if (!profile || profile.role === "PENDING") return;
 
     const isAdmin = profile.role === "ADMIN";
-    const isAuditRole = profile.role === "AUDIT";
-
+    
     // Determine target branch for data sync
     let effectiveBranchId = profile.branchId;
     if (activeMenu === "audit") {
@@ -912,27 +945,23 @@ export default function App() {
 
     const loadData = async () => {
       try {
-        const fetchPromises: Promise<any>[] = [
+        const fetchPromises: any[] = [
           api.getProducts(),
           api.getSales({ branchId: effectiveBranchId }),
           api.getCommissions({ branchId: effectiveBranchId }),
-          api.getShifts({ branchId: effectiveBranchId })
+          api.getShifts({ branchId: effectiveBranchId }),
+          api.getUsers(), // Always fetch users to handle personnel selection in shifts
+          api.getAdjustments()
         ];
 
-        if (activeMenu === "employees" && isAdmin) {
-          fetchPromises.push(api.getUsers());
-        }
-
-        const results = await Promise.all(fetchPromises);
+        const res = await Promise.all(fetchPromises);
         
-        setProducts(results[0]);
-        setSales(results[1]);
-        setCommissions(results[2]);
-        setShifts(results[3]);
-
-        if (activeMenu === "employees" && isAdmin) {
-          setUsers(results[4]);
-        }
+        setProducts(res[0]);
+        setSales(res[1]);
+        setCommissions(res[2]);
+        setShifts(res[3]);
+        setUsers(res[4]);
+        setAdjustments(res[5]);
       } catch (err) {
         console.error("Data load error:", err);
       }
@@ -944,6 +973,7 @@ export default function App() {
     const socket = io();
     socket.on("saleProcessed", () => loadData());
     socket.on("productUpdated", () => loadData());
+    socket.on("stockUpdated", () => loadData());
 
     return () => {
       socket.disconnect();
@@ -1002,22 +1032,6 @@ export default function App() {
         addToCart(productByMasterSN);
         return;
       }
-
-      // Priority 3: Check Individual Voucher SN (Legacy/Pcs)
-      const foundSN = voucherSNs.find(
-        (s) =>
-          s.sn === barcode &&
-          s.branchId === profile?.branchId &&
-          s.status === "available"
-      );
-      if (foundSN) {
-        const productForVoucher = products.find((p) => p.id === foundSN.productId);
-        if (productForVoucher) {
-          addToCart(productForVoucher, foundSN.sn);
-          setSearchTerm("");
-        }
-        return;
-      }
     } else if (activeMenu === "audit") {
       if (!auditSelectedBranch) return;
       
@@ -1071,7 +1085,12 @@ export default function App() {
       return alert("Mohon lengkapi data user.");
     }
     try {
-      await api.register(newUserDraft);
+      // Ensure empty branchId is null for consistency
+      const payload = {
+        ...newUserDraft,
+        branchId: newUserDraft.branchId === "" ? null : newUserDraft.branchId
+      };
+      await api.register(payload);
       const uData = await api.getUsers();
       setUsers(uData);
       setShowUserForm(false);
@@ -1266,6 +1285,8 @@ export default function App() {
     if (isNaN(qty)) return;
 
     const oldQty = (product.stocks || {})[auditSelectedBranch] || 0;
+    
+    if (qty === oldQty) return;
 
     try {
       await api.adjustStock({
@@ -1280,7 +1301,6 @@ export default function App() {
       // Refresh local products
       const pData = await api.getProducts();
       setProducts(pData);
-      alert("Stok berhasil diupdate!");
     } catch (e: any) {
       console.error(e);
       alert("Gagal update stok.");
@@ -1324,16 +1344,11 @@ export default function App() {
     return s ? s.qty : 0;
   };
 
-  const addToCart = (product: any, forcedSN?: string) => {
+  const addToCart = (product: any) => {
     const availableStock = getBranchStock(profile?.branchId || "", product.id);
     setCart((prev) => {
-      // Check if product with this SN already in cart (for vouchers)
-      if (forcedSN && prev.find((item) => item.sn === forcedSN)) {
-        return prev;
-      }
-
       const exists = prev.find(
-        (item) => item.product.id === product.id && !item.sn,
+        (item) => item.product.id === product.id,
       );
       const currentQty = prev
         .filter((i) => i.product.id === product.id)
@@ -1344,28 +1359,9 @@ export default function App() {
         return prev;
       }
 
-      if (forcedSN) {
-        return [...prev, { product, qty: 1, sn: forcedSN }];
-      }
-
-      // If it's a voucher and has a Master SN, use it automatically
-      if (product.category === "Voucher" && product.masterSN) {
-        const existsWithSN = prev.find(
-          (item) => item.product.id === product.id && item.sn === product.masterSN,
-        );
-        if (existsWithSN) {
-          return prev.map((item) =>
-            item.product.id === product.id && item.sn === product.masterSN
-              ? { ...item, qty: item.qty + 1 }
-              : item,
-          );
-        }
-        return [...prev, { product, qty: 1, sn: product.masterSN }];
-      }
-
       if (exists)
         return prev.map((item) =>
-          item.product.id === product.id && !item.sn
+          item.product.id === product.id
             ? { ...item, qty: item.qty + 1 }
             : item,
         );
@@ -1397,6 +1393,13 @@ export default function App() {
   };
 
   const handleRefund = async (sale: any) => {
+    console.log("handleRefund called", sale);
+    
+    if (!sale) {
+       alert("Error: Data penjualan tidak ditemukan. Hubungi pengembang.");
+       return;
+    }
+    
     if (sale.status === "refunded") return alert("Transaksi ini sudah di-refund.");
     if (!window.confirm("Refund seluruh transaksi ini? Stok akan dikembalikan ke cabang.")) return;
 
@@ -1676,7 +1679,7 @@ export default function App() {
 
       await api.createSale({
         branchId: p.branchId,
-        cashierId: p.uid,
+        cashierId: p.id,
         items,
         total: currentTotal,
         totalCommission,
@@ -1791,7 +1794,12 @@ export default function App() {
   };
 
   const handleCloseShift = () => {
-    if (!profile?.branchId) return;
+    console.log("handleCloseShift called, profile:", profile);
+    if (!profile?.branchId) {
+       console.log("handleCloseShift aborted: no profile or branchId");
+       alert("Error: Profile atau Branch ID tidak ditemukan. Silakan login kembali/refresh.");
+       return;
+    }
     if (
       !window.confirm(
         "Yakin ingin menutup shift? Pastikan semua transaksi sudah selesai.",
@@ -2384,22 +2392,11 @@ export default function App() {
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
                   Daftar Belanja
-                  {(() => {
-                    let alertCount = 0;
-                    products.forEach((p) => {
-                      if (p.minStock > 0) {
-                        branches.forEach((b) => {
-                          if (getBranchStock(b.id, p.id) <= p.minStock)
-                            alertCount++;
-                        });
-                      }
-                    });
-                    return alertCount > 0 ? (
-                      <span className="w-4 h-4 bg-red-500 text-white flex items-center justify-center rounded-full text-[8px] animate-pulse">
-                        {alertCount}
-                      </span>
-                    ) : null;
-                  })()}
+                  {shopListAlertCount > 0 ? (
+                    <span className="w-4 h-4 bg-red-500 text-white flex items-center justify-center rounded-full text-[8px] animate-pulse">
+                      {shopListAlertCount}
+                    </span>
+                  ) : null}
                 </button>
               )}
               {deferredPrompt && (
@@ -2481,23 +2478,27 @@ export default function App() {
                               <div className="space-y-1">
                                 <input
                                   type="text"
-                                  value={emp.name || emp.displayName || ""}
-                                  onChange={(e) =>
-                                    updateUser(emp.id, "name", e.target.value)
-                                  }
+                                  defaultValue={emp.name || emp.displayName || ""}
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (emp.name || emp.displayName || "")) {
+                                      updateUser(emp.id, "name", e.target.value);
+                                    }
+                                  }}
                                   placeholder="Petugas 1..."
                                   className="block w-full font-bold text-slate-800 bg-white border border-slate-200 focus:border-blue-500 focus:outline-none px-2 py-0.5 rounded transition-all text-sm"
                                 />
                                 <input
                                   type="text"
-                                  value={emp.alternativeNames || ""}
-                                  onChange={(e) =>
-                                    updateUser(
-                                      emp.id,
-                                      "alternativeNames",
-                                      e.target.value,
-                                    )
-                                  }
+                                  defaultValue={emp.alternativeNames || ""}
+                                  onBlur={(e) => {
+                                    if (e.target.value !== (emp.alternativeNames || "")) {
+                                      updateUser(
+                                        emp.id,
+                                        "alternativeNames",
+                                        e.target.value,
+                                      );
+                                    }
+                                  }}
                                   placeholder="Petugas 2, 3 (Pisah Koma)..."
                                   className="block w-full text-[9px] font-medium text-slate-400 bg-white border border-slate-200 focus:border-blue-500 focus:outline-none px-2 py-0.5 rounded transition-all italic shadow-sm"
                                 />
@@ -2549,24 +2550,115 @@ export default function App() {
                               </select>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {emp.id !== user?.uid ? (
-                                <button
-                                  onClick={() => deleteUser(emp.id, emp.name)}
-                                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-90"
-                                  title="Hapus Karyawan"
+                              <div className="flex items-center justify-center gap-2">
+                                <button 
+                                  onClick={() => setResetUser(emp)}
+                                  className="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all active:scale-95 flex items-center justify-center border border-transparent hover:border-orange-100"
+                                  title="Reset Password"
                                 >
-                                  <Trash2 className="w-5 h-5" />
+                                  <Key className="w-5 h-5" />
                                 </button>
-                              ) : (
-                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">
-                                  Akun Anda
-                                </span>
-                              )}
+                                {emp.id !== user?.uid && (
+                                  <button
+                                    onClick={() => deleteUser(emp.id, emp.name)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-90"
+                                    title="Hapus Karyawan"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Reset Password */}
+            {resetUser && (
+              <div className="fixed inset-0 z-[5000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 text-left">
+                <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
+                        <Key className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-slate-800 text-sm uppercase tracking-tight">
+                          Ganti Password
+                        </h3>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+                          User: {resetUser.username || resetUser.email || resetUser.name}
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setResetUser(null)}
+                      className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="p-6 space-y-4">
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Password Baru
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          value={newPassInput}
+                          onChange={(e) => setNewPassInput(e.target.value)}
+                          placeholder="Masukkan password baru..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-10 pr-4 text-sm focus:ring-4 focus:ring-orange-100 outline-none transition-all font-bold"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => setResetUser(null)}
+                        className="flex-1 py-3 px-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!newPassInput) return alert("Password tidak boleh kosong.");
+                          setIsUpdatingPass(true);
+                          try {
+                            await api.updateUser(resetUser.id, { password: newPassInput });
+                            alert("Password berhasil diperbarui!");
+                            setResetUser(null);
+                            setNewPassInput("");
+                          } catch (err) {
+                            alert("Gagal memperbarui password.");
+                          } finally {
+                            setIsUpdatingPass(false);
+                          }
+                        }}
+                        disabled={isUpdatingPass}
+                        className="flex-[2] py-3 px-4 bg-orange-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isUpdatingPass ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Memproses...
+                          </>
+                        ) : (
+                          "Update Password"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2681,8 +2773,8 @@ export default function App() {
                               const capital = (s.items || []).reduce((sum: number, it: any) => {
                                 let pPrice = it.purchasePrice;
                                 if (pPrice === undefined || pPrice === null) {
-                                  const m = products.find(p => p.id === it.id);
-                                  pPrice = m?.purchasePrice || 0;
+                                  const m = products.find(p => p.id === (it.productId || it.id));
+                                  pPrice = m?.buyingPrice || 0; // Use buyingPrice as per schema
                                 }
                                 return sum + (pPrice * (it.qty || 0));
                               }, 0);
@@ -3714,7 +3806,7 @@ export default function App() {
                                   return (
                                     (p.category || "LAINNYA") ===
                                       drillPath[0] &&
-                                    (p[field] || "TANPA MERK") === drillPath[1]
+                                    (p[field] || "LAINNYA") === drillPath[1]
                                   );
                                 }
                                 if (drillPath.length === 3) {
@@ -4888,7 +4980,13 @@ export default function App() {
                                           }
                                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-center text-xs font-black focus:ring-2 focus:ring-blue-600 focus:bg-white focus:outline-none transition-all outline-none"
                                         />
-                                        <button className="shrink-0 p-2 text-emerald-600 bg-emerald-50 rounded-lg">
+                                        <button 
+                                          onClick={(e) => {
+                                            const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                                            handleAuditStock(p.id, input.value);
+                                          }}
+                                          className="shrink-0 p-2 text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                                        >
                                           <Check className="w-4 h-4" />
                                         </button>
                                       </div>
@@ -5031,6 +5129,12 @@ export default function App() {
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest whitespace-nowrap ${auditSidebarTab === "transfer" ? "bg-white shadow-sm text-blue-600" : "bg-transparent text-slate-400 hover:text-slate-600"}`}
                           >
                             <ArrowRightLeft className="w-3.5 h-3.5" /> Antar Cabang
+                          </button>
+                          <button
+                            onClick={() => setAuditSidebarTab("logs")}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest whitespace-nowrap ${auditSidebarTab === "logs" ? "bg-white shadow-sm text-amber-600" : "bg-transparent text-slate-400 hover:text-slate-600"}`}
+                          >
+                            <HistoryIcon className="w-3.5 h-3.5" /> Riwayat
                           </button>
                         </div>
                       </div>
@@ -5472,6 +5576,63 @@ export default function App() {
                             </div>
                           </div>
                         )}
+                        {auditSidebarTab === "logs" && (
+                          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                             <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm text-left">
+                               <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                                 <HistoryIcon className="w-6 h-6" />
+                               </div>
+                               <div className="text-left">
+                                 <h4 className="text-sm font-black text-slate-900 uppercase tracking-tighter leading-none mb-1">
+                                   Jejak Audit
+                                 </h4>
+                                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                                   Riwayat Mutasi Cabang Ini
+                                 </p>
+                               </div>
+                             </div>
+
+                             <div className="space-y-3">
+                               {adjustments
+                                 .filter(a => !auditSelectedBranch || a.branchId === auditSelectedBranch)
+                                 .slice(0, 30)
+                                 .map((log: any, idx: number) => (
+                                   <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-left">
+                                     <div className="flex justify-between items-start mb-2">
+                                       <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight truncate max-w-[150px]">
+                                         {products.find(p => p.id === log.productId)?.name || "Produk N/A"}
+                                       </p>
+                                       <span className={`px-2 py-0.5 rounded font-black uppercase text-[8px] tracking-widest ${
+                                         log.type?.includes("IN") ? "bg-emerald-50 text-emerald-600" : log.type?.includes("OUT") ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                                       }`}>
+                                         {log.type === "STOCK_IN" ? "Masuk" : log.type === "STOCK_OUT" ? "Keluar" : log.type === "TRANSFER_IN" ? "Trf In" : "Trf Out"}
+                                       </span>
+                                     </div>
+                                     <div className="flex justify-between items-end">
+                                       <div>
+                                         <p className="text-[9px] text-slate-400 font-medium uppercase tracking-widest mb-1">
+                                           {log.reason || "Tanpa Keterangan"}
+                                         </p>
+                                         <p className="text-[8px] font-mono text-slate-300 font-bold">
+                                           {new Date(log.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                         </p>
+                                       </div>
+                                       <p className="text-sm font-black text-slate-800">
+                                         {log.qty > 0 ? `+${log.qty}` : log.qty}
+                                       </p>
+                                     </div>
+                                   </div>
+                                 ))}
+
+                               {adjustments.filter(a => !auditSelectedBranch || a.branchId === auditSelectedBranch).length === 0 && (
+                                 <div className="py-12 text-center opacity-30">
+                                   <HistoryIcon className="w-12 h-12 mx-auto mb-3" />
+                                   <p className="text-[10px] font-black uppercase tracking-widest">Belum ada riwayat</p>
+                                 </div>
+                               )}
+                             </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -5720,7 +5881,6 @@ export default function App() {
                               qtyInput.value = "";
                               supplierInput.value = "";
                               setSelectedTransferProduct(null);
-                              alert("Stok berhasil ditambahkan!");
                             }}
                             className={`w-full py-5 rounded-[24px] font-black text-[12px] uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ${
                               selectedTransferProduct 
@@ -6448,7 +6608,7 @@ export default function App() {
                                       <div className="flex-1 pr-2">
                                         <div className="flex items-center gap-1.5">
                                           <p className="leading-tight">
-                                            {item.name || "Produk"}
+                                            {item.product?.name || item.name || "Produk"}
                                           </p>
                                           {item.refunded && (
                                             <span className="bg-red-500 text-white text-[5px] px-1 py-0 rounded-sm leading-none font-black">
@@ -7062,7 +7222,7 @@ export default function App() {
                                     {c.status === "refunded" ? <RotateCcw className="w-5 h-5" /> : <Tag className="w-5 h-5" />}
                                   </div>
                                   <div>
-                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{c.productName}</p>
+                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{c.product?.name || c.productName || "Bonus"}</p>
                                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
                                       {new Date(c.createdAt).toLocaleTimeString("id-ID")} • {new Date(c.createdAt).toLocaleDateString("id-ID")}
                                     </p>
@@ -7634,8 +7794,8 @@ export default function App() {
                                 const capital = (s.items || []).reduce((sum: number, it: any) => {
                                   let pPrice = it.purchasePrice;
                                   if (pPrice === undefined || pPrice === null) {
-                                    const m = productMap.get(it.id) as any;
-                                    pPrice = m?.purchasePrice || 0;
+                                    const m = products.find(p => p.id === (it.productId || it.id)) as any;
+                                    pPrice = m?.buyingPrice || 0;
                                   }
                                   return sum + (Number(pPrice || 0) * Number(it.qty || 0));
                                 }, 0);
@@ -7650,11 +7810,11 @@ export default function App() {
                                     {branches.find((b) => b.id === s.branchId)?.name || "Pusat"}
                                   </td>
                                   <td className="px-4 py-3 font-bold text-blue-600 uppercase tracking-tight truncate max-w-[80px]">
-                                    {s.cashierName || "N/A"}
+                                    {s.cashier?.name || s.cashierName || "Sistem"}
                                   </td>
                                   <td className="px-4 py-3">
                                     <div className="truncate max-w-[150px]">
-                                      {s.items?.map((i: any) => `${i.name} (x${i.qty})`).join(", ")}
+                                      {s.items?.map((i: any) => `${i.product?.name || i.name || "Produk"} (x${i.qty})`).join(", ")}
                                     </div>
                                   </td>
                                   <td className="px-4 py-3 text-right font-black text-slate-900">
@@ -7817,100 +7977,7 @@ export default function App() {
           onScan={(res) => scannerCallback(res)}
         />
       )}
-      {showVoucherAudit && (
-        <div className="fixed inset-0 z-[999] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90dvh]">
-            <div className="p-3 md:p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-              <div>
-                <h3 className="font-black text-slate-800 uppercase tracking-tight leading-none">
-                  Input Stok SN Voucher
-                </h3>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-                  {showVoucherAudit.name}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowVoucherAudit(null)}
-                className="text-slate-400 hover:text-red-500"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-4 md:p-6 overflow-y-auto flex-1 space-y-4">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <ScanBarcode className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Input atau Scan SN Baru..."
-                    className="w-full border border-blue-300 rounded pl-10 pr-4 py-2.5 text-sm font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val) {
-                          if (scannedSNs.includes(val))
-                            return alert("SN Sudah ada d daftar!");
-                          setScannedSNs((prev) => [val, ...prev]);
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }
-                    }}
-                  />
-                </div>
-                <button
-                  onClick={() => {
-                    setShowScanner(true);
-                    setScannerCallback(
-                      () => (c: string) => setScannedSNs((s) => [...s, c]),
-                    );
-                  }}
-                  className="bg-blue-600 text-white px-3"
-                >
-                  <Camera className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-1.5 font-bold uppercase tracking-widest text-[10px] text-slate-400">
-                <span>Daftar SN ({scannedSNs.length} Pcs)</span>
-                <div className="bg-slate-50 p-2 rounded max-h-40 overflow-y-auto border divide-y divide-slate-100 flex flex-col gap-1">
-                  {scannedSNs.length === 0 ? (
-                    <div className="p-6 md:p-10 text-center opacity-30">
-                      Belum ada SN
-                    </div>
-                  ) : (
-                    scannedSNs.map((s, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between py-1.5 px-2 bg-white rounded shadow-sm group"
-                      >
-                        <span className="text-xs font-mono text-slate-700">
-                          {s}
-                        </span>
-                        <button
-                          onClick={() =>
-                            setScannedSNs((prev) =>
-                              prev.filter((_, idx) => idx !== i),
-                            )
-                          }
-                          className="text-red-400 opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={handleSaveVoucherSNs}
-              className="m-4 bg-emerald-600 text-white py-3 md:py-4 rounded font-black shadow-lg uppercase tracking-widest text-[11px] transform active:scale-95 transition-all"
-            >
-              Patenkan {scannedSNs.length} SN Masuk
-            </button>
-          </div>
-        </div>
-      )}
 
       {quickAuditProduct && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">

@@ -124,6 +124,7 @@ model SaleItem {
   qty       Int
   price     Float
   subtotal  Float
+  sn        String?
 }
 
 model Commission {

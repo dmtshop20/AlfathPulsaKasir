@@ -53,15 +53,22 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-// Authentication API (Public)
-app.post("/api/auth/register", async (req, res) => {
-  // Only Admin should be able to register maybe? For now allow for initial setup
+// Authentication API
+app.post("/api/auth/register", authenticateToken, async (req, res) => {
+  if ((req as any).user.role !== "ADMIN") return res.status(403).json({ error: "Forbidden" });
   const { username, password, name, role, branchId, alternativeNames } = req.body;
+  const cleanUsername = username?.trim().toLowerCase();
+  const cleanPassword = password?.trim();
+  
+  if (!cleanUsername || !cleanPassword) {
+    return res.status(400).json({ error: "Username dan password wajib diisi." });
+  }
+
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(cleanPassword, 10);
     const user = await prisma.user.create({
       data: {
-        username,
+        username: cleanUsername,
         password: hashedPassword,
         name,
         alternativeNames,
@@ -72,20 +79,22 @@ app.post("/api/auth/register", async (req, res) => {
     });
     const { password: _, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Register Error:", error);
-    res.status(500).json({ error: "Username already exists or invalid data" });
+    res.status(500).json({ error: error?.message || "Username already exists or invalid data" });
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
+  const cleanUsername = username?.trim().toLowerCase();
+  const cleanPassword = password?.trim();
   try {
     const user = await prisma.user.findUnique({
-      where: { username }
+      where: { username: cleanUsername }
     });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user || !(await bcrypt.compare(cleanPassword, user.password))) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
@@ -286,9 +295,11 @@ app.post("/api/sales", authenticateToken, async (req, res) => {
     });
 
     res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Sale Process Error:", error);
-    res.status(500).json({ error: "Failed to process sale" });
+    if (error.code) console.error("Prisma Error Code:", error.code);
+    if (error.meta) console.error("Prisma Error Meta:", JSON.stringify(error.meta));
+    res.status(500).json({ error: "Failed to process sale: " + (error.message || "Unknown") });
   }
 });
 
@@ -308,8 +319,9 @@ app.get("/api/sales", authenticateToken, async (req, res) => {
       orderBy: { createdAt: "desc" }
     });
     res.json(sales);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch sales" });
+  } catch (error: any) {
+    console.error("Fetch Sales Error:", error);
+    res.status(500).json({ error: "Failed to fetch sales: " + (error?.message || "Unknown") });
   }
 });
 
@@ -405,6 +417,27 @@ app.get("/api/users", authenticateToken, async (req, res) => {
     res.json(usersWithoutPasswords);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+app.get("/api/adjustments", authenticateToken, async (req, res) => {
+  try {
+    const adjustments = await prisma.adjustment.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 200, 
+    });
+    res.json(adjustments);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch adjustments" });
+  }
+});
+
+app.post("/api/adjustments/cleanup", authenticateToken, async (req, res) => {
+  try {
+    await prisma.adjustment.deleteMany({});
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to cleanup adjustments" });
   }
 });
 
@@ -537,16 +570,28 @@ app.post("/api/voucher-sns/bulk", authenticateToken, async (req, res) => {
 });
 
 app.patch("/api/users/:id", authenticateToken, async (req, res) => {
-  const { role, branchId, status, name, alternativeNames } = req.body;
+  const { role, branchId, status, name, alternativeNames, password } = req.body;
   try {
+    const updateData: any = {};
+    if (role !== undefined) updateData.role = role;
+    if (branchId !== undefined) updateData.branchId = branchId === "" ? null : branchId;
+    if (status !== undefined) updateData.status = status;
+    if (name !== undefined) updateData.name = name;
+    if (alternativeNames !== undefined) updateData.alternativeNames = alternativeNames;
+    
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { role, branchId, status, name, alternativeNames }
+      data: updateData
     });
     const { password: _, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
   } catch (error) {
-    res.status(500).json({ error: "Failed to update user" });
+    console.error("User Update Error:", error);
+    res.status(500).json({ error: "Gagal update data user. Pastikan data valid." });
   }
 });
 

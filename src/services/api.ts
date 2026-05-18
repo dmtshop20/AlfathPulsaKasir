@@ -32,7 +32,10 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Registration failed");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Registration failed");
+    }
     const result = await res.json();
     if (result) result.uid = result.id;
     return result;
@@ -237,6 +240,14 @@ export const api = {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch commission summary");
+    return res.json();
+  },
+
+  async getAdjustments() {
+    const res = await fetch(`${BASE_URL}/adjustments`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch adjustments");
     return res.json();
   },
 
