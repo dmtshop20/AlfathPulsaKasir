@@ -1721,7 +1721,9 @@ export default function App() {
       const pData = await api.getProducts();
       setProducts(pData);
 
-      alert(`PEMBAYARAN BERHASIL!\nTotal: Rp ${currentTotal.toLocaleString("id-ID")}`);
+      setTimeout(() => {
+        alert(`PEMBAYARAN BERHASIL!\nTotal: Rp ${currentTotal.toLocaleString("id-ID")}`);
+      }, 100);
     } catch (e: any) {
       console.error("Checkout Error:", e);
       alert(e.message || "Gagal memproses transaksi.");
@@ -6165,7 +6167,7 @@ export default function App() {
                               <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 text-left">
                                 {cart.map((item, idx) => (
                                   <div
-                                    key={idx}
+                                    key={item.product.id + (item.sn || '') + idx}
                                     className="flex gap-2 py-2 items-center group transition-colors px-2 hover:bg-slate-50 text-left"
                                   >
                                     <button
@@ -6308,14 +6310,18 @@ export default function App() {
                               }
                               className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-30 disabled:grayscale text-white font-black py-3.5 rounded-xl text-[13px] shadow-xl shadow-emerald-500/10 flex items-center justify-center gap-2 uppercase tracking-widest transition-all"
                             >
-                              {isProcessingCheckout ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : (
-                                <Banknote className="w-5 h-5" />
-                              )}
-                              {isProcessingCheckout
-                                ? "PROSES..."
-                                : "BAYAR & CETAK"}
+                              <div className="flex-1 flex items-center justify-center gap-2">
+                                {isProcessingCheckout ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                  <Banknote className="w-5 h-5" />
+                                )}
+                                <span>
+                                  {isProcessingCheckout
+                                    ? "PROSES..."
+                                    : "BAYAR & CETAK"}
+                                </span>
+                              </div>
                             </button>
                             <button
                               onClick={() => setShowMobileCart(true)}
@@ -6350,14 +6356,18 @@ export default function App() {
                               }
                               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 md:py-4 rounded-xl text-[11px] shadow-xl shadow-emerald-500/10 flex items-center justify-center gap-2 uppercase tracking-widest disabled:opacity-30 transition-all font-mono"
                             >
-                              {isProcessingCheckout ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Banknote className="w-4 h-4" />
-                              )}
-                              {isProcessingCheckout
-                                ? "PROSES..."
-                                : "Konfirmasi Bayar"}
+                              <div className="flex-1 flex items-center justify-center gap-2">
+                                {isProcessingCheckout ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Banknote className="w-4 h-4" />
+                                )}
+                                <span>
+                                  {isProcessingCheckout
+                                    ? "PROSES..."
+                                    : "Konfirmasi Bayar"}
+                                </span>
+                              </div>
                             </button>
                           </div>
                         </div>
