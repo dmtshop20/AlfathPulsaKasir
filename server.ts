@@ -769,31 +769,38 @@ async function startApp() {
     await prisma.$connect();
     console.log("✅ Database connection established.");
     
-    // Auto-seed for empty databases (e.g. fresh Railway deploy)
+    // Ensure base credentials exist (Ensures admin/admin123 always works)
     try {
-      const userCount = await prisma.user.count();
-      if (userCount === 0) {
-        console.log("⚠️ No users found in database. Running auto-seed...");
-        
-        const pHash1 = await bcrypt.hash("admin123", 10);
-        const pHash2 = await bcrypt.hash("cashier", 10);
-        
-        const branch = await prisma.branch.create({
-          data: { name: "Cabang Utama", address: "Cianjur", phone: "0812" }
-        });
-        
-        await prisma.user.createMany({
-          data: [
-            { username: "admin", password: pHash1, name: "Super Admin", role: "ADMIN", branchId: branch.id, status: "Active" },
-            { username: "cashier", password: pHash2, name: "Kasir 1", role: "CASHIER", branchId: branch.id, status: "Active" }
-          ]
-        });
-        console.log("✅ Auto-seed complete! New Users: admin (pw: admin123) and cashier (pw: cashier)");
-      } else {
-        console.log(`ℹ️ Database already has ${userCount} users. Auto-seed skipped. Using existing credentials.`);
-      }
+      const pHashAdmin = await bcrypt.hash("admin123", 10);
+      const pHashCashier = await bcrypt.hash("cashier123", 10);
+      
+      const defaultBranchId = "default-branch-id";
+      const branch = await prisma.branch.upsert({
+        where: { id: defaultBranchId },
+        update: {},
+        create: {
+          id: defaultBranchId,
+          name: "Cabang Utama",
+          address: "Cianjur",
+          phone: "0812"
+        }
+      });
+      
+      await prisma.user.upsert({
+        where: { username: "admin" },
+        update: { password: pHashAdmin, status: "Active", role: "ADMIN" },
+        create: { username: "admin", password: pHashAdmin, name: "Super Admin", role: "ADMIN", branchId: branch.id, status: "Active" }
+      });
+
+      await prisma.user.upsert({
+        where: { username: "cashier" },
+        update: { password: pHashCashier, status: "Active", role: "CASHIER" },
+        create: { username: "cashier", password: pHashCashier, name: "Kasir Toko", role: "CASHIER", branchId: branch.id, status: "Active" }
+      });
+
+      console.log("✅ Credentials synchronized: admin (pw: admin123) and cashier (pw: cashier123)");
     } catch (dbErr: any) {
-      console.error("ℹ️ Auto-seed check skipped or failed:", dbErr.message);
+      console.error("ℹ️ User synchronization check skipped or failed:", dbErr.message);
     }
 
   } catch (error: any) {
