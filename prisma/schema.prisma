@@ -20,6 +20,7 @@ model User {
   branch           Branch?  @relation(fields: [branchId], references: [id])
   branchId         String?
   status           String?
+  bonusBalance     Float    @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   
@@ -29,11 +30,12 @@ model User {
 }
 
 model Branch {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?
-  phone     String?
-  createdAt DateTime @default(now())
+  id                 String   @id @default(uuid())
+  name               String
+  address            String?
+  phone              String?
+  allowEmployeeInput Boolean  @default(true)
+  createdAt          DateTime @default(now())
   
   users          User[]
   sales          Sale[]
@@ -156,6 +158,12 @@ model Adjustment {
   type        String   // STOCK_IN, STOCK_OUT, TRANSFER_IN, TRANSFER_OUT
   reason      String?
   createdAt   DateTime @default(now())
+}
+
+model GlobalConfig {
+  id                     String  @id @default("default")
+  allowCashierStockInput Boolean @default(true)
+  updatedAt              DateTime @updatedAt
 }
 
 model Shift {

@@ -845,10 +845,22 @@ export default function App() {
         try {
           const userData = await api.getMe();
           setProfile(userData);
-          const bData = await api.getBranches();
-          setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
-          const pData = await api.getProducts();
+          const [bData, pData, cData] = await Promise.all([
+            api.getBranches(),
+            api.getProducts(),
+            fetch("/api/config", {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }).then((res) => res.json()),
+          ]);
+          setBranches(
+            bData.sort((a: any, b: any) =>
+              (a.name || "").localeCompare(b.name || ""),
+            ),
+          );
           setProducts(pData);
+          setAppConfig(cData);
           setAuthLoading(false);
         } catch (err) {
           localStorage.removeItem("token");
@@ -1531,23 +1543,27 @@ export default function App() {
       return alert("Data transfer tidak valid!");
     }
 
-    setIsProcessingTransfer(true);
-    try {
-      await api.transferStock({
-        productId,
-        qty,
-        sourceBranchId,
-        targetBranchId
-      });
-      const pData = await api.getProducts();
-      setProducts(pData);
-      alert("Stok Berhasil Ditransfer! (Otomatis Sync saat Online)");
-    } catch (e: any) {
-      alert(e.message || "Gagal transfer stock");
-    } finally {
-      setIsProcessingTransfer(false);
-    }
-  };
+      setIsProcessingTransfer(true);
+      try {
+        await api.transferStock({
+          productId,
+          qty,
+          sourceBranchId,
+          targetBranchId,
+        });
+        const pData = await api.getProducts();
+        setProducts(pData);
+        setTimeout(() => {
+          alert("Stok Berhasil Ditransfer! (Otomatis Sync saat Online)");
+        }, 100);
+      } catch (e: any) {
+        setTimeout(() => {
+          alert(e.message || "Gagal transfer stock");
+        }, 100);
+      } finally {
+        setIsProcessingTransfer(false);
+      }
+    };
 
   const cartTotal = React.useMemo(() => {
     return cart.reduce((sum, item) => {
@@ -2370,7 +2386,11 @@ export default function App() {
                   label="Input Stok Cabang"
                   active={activeMenu === "cashier_stock"}
                   onClick={() => setActiveMenu("cashier_stock")}
-                  locked={!appConfig.allowCashierStockInput}
+                  locked={
+                    !appConfig.allowCashierStockInput ||
+                    branches.find((b) => b.id === profile?.branchId)
+                      ?.allowEmployeeInput === false
+                  }
                 />
               </>
             )}
@@ -3254,9 +3274,29 @@ export default function App() {
                         </p>
                       </div>
                       <button
-                        onClick={() =>
-                          alert("Pengaturan ini belum diaktifkan di server baru.")
-                        }
+                        onClick={async () => {
+                          try {
+                            const newVal = !appConfig.allowCashierStockInput;
+                            await fetch("/api/config", {
+                              method: "PATCH",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${localStorage.getItem(
+                                  "token",
+                                )}`,
+                              },
+                              body: JSON.stringify({
+                                allowCashierStockInput: newVal,
+                              }),
+                            });
+                            setAppConfig((prev: any) => ({
+                              ...prev,
+                              allowCashierStockInput: newVal,
+                            }));
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }}
                         className={`w-14 h-7 rounded-full transition-all relative ${appConfig.allowCashierStockInput ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]" : "bg-slate-300"}`}
                       >
                         <div
@@ -3325,19 +3365,65 @@ export default function App() {
                               </div>
                             </div>
                             <div className="flex flex-col items-end gap-2 text-right">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <button
                                   onClick={async () => {
-                                    if (confirm(`Hapus Cabang "${b.name}"?\nSemua data transaksi di cabang ini akan tetap ada di database namun cabang tidak akan muncul di pilihan lagi.`)) {
+                                    try {
+                                      const newVal = !b.allowEmployeeInput;
+                                      await fetch(`/api/branches/${b.id}`, {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          Authorization: `Bearer ${localStorage.getItem(
+                                            "token",
+                                          )}`,
+                                        },
+                                        body: JSON.stringify({
+                                          allowEmployeeInput: newVal,
+                                        }),
+                                      });
+                                      const bData = await api.getBranches();
+                                      setBranches(
+                                        bData.sort((a: any, b: any) =>
+                                          (a.name || "").localeCompare(
+                                            b.name || "",
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      console.error(e);
+                                    }
+                                  }}
+                                  className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-tight transition-all ${b.allowEmployeeInput !== false ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-200 text-slate-500 hover:bg-slate-300"}`}
+                                >
+                                  {b.allowEmployeeInput !== false
+                                    ? "INPUT AKTIF"
+                                    : "INPUT OFF"}
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (
+                                      confirm(
+                                        `Hapus Cabang "${b.name}"?\nSemua data stok dan voucher di cabang ini akan dihapus. Data penjualan tetap tersimpan.`,
+                                      )
+                                    ) {
                                       try {
                                         await fetch(`/api/branches/${b.id}`, {
-                                            method: 'DELETE',
-                                            headers: {
-                                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                                            }
+                                          method: "DELETE",
+                                          headers: {
+                                            Authorization: `Bearer ${localStorage.getItem(
+                                              "token",
+                                            )}`,
+                                          },
                                         });
                                         const bData = await api.getBranches();
-                                        setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
+                                        setBranches(
+                                          bData.sort((a: any, b: any) =>
+                                            (a.name || "").localeCompare(
+                                              b.name || "",
+                                            ),
+                                          ),
+                                        );
                                       } catch (e) {
                                         console.error(e);
                                       }
@@ -3348,7 +3434,7 @@ export default function App() {
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
-                                <span className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[9px] font-bold uppercase tracking-widest leading-none">
+                                <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[9px] font-bold uppercase tracking-widest leading-none">
                                   Beroperasi
                                 </span>
                               </div>
@@ -7067,14 +7153,18 @@ export default function App() {
                             }
                             className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-30 disabled:grayscale transition-all flex items-center justify-center gap-2 mt-2 active:scale-95"
                           >
-                            {isProcessingTransfer ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <ArrowRightLeft className="w-3.5 h-3.5" />
-                            )}
-                            {isProcessingTransfer
-                              ? "MEMPROSES..."
-                              : "Konfirmasi Transfer"}
+                            <div className="flex items-center justify-center gap-2">
+                              {isProcessingTransfer ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <ArrowRightLeft className="w-3.5 h-3.5" />
+                              )}
+                              <span>
+                                {isProcessingTransfer
+                                  ? "MEMPROSES..."
+                                  : "Konfirmasi Transfer"}
+                              </span>
+                            </div>
                           </button>
                         </div>
                       </div>
@@ -7181,11 +7271,17 @@ export default function App() {
                       <div className="relative overflow-hidden bg-blue-600 rounded-2xl md:rounded-[32px] p-5 md:p-6 text-white shadow-lg md:shadow-xl shadow-blue-200">
                         <div className="absolute top-0 right-0 w-32 h-32 md:w-48 md:h-48 bg-white/10 rounded-full -mr-10 -mt-10 md:-mr-16 md:-mt-16 blur-2xl"></div>
                         <Sparkles className="w-6 h-6 md:w-8 md:h-8 mb-3 md:mb-4 opacity-80" />
-                        <h3 className="text-xs md:text-sm font-black uppercase tracking-widest opacity-80 mb-1">Total Bonus Cabang</h3>
+                        <h3 className="text-xs md:text-sm font-black uppercase tracking-widest opacity-80 mb-1">
+                          Saldo Bonus Saya
+                        </h3>
                         <div className="flex items-baseline gap-1.5 mb-5 md:mb-6">
-                          <span className="text-sm md:text-xl font-bold opacity-60">Rp</span>
+                          <span className="text-sm md:text-xl font-bold opacity-60">
+                            Rp
+                          </span>
                           <span className="text-2xl md:text-5xl font-black tracking-tighter">
-                            {(commissionsSummary?.totalEarned || 0).toLocaleString("id-ID")}
+                            {(profile?.bonusBalance || 0).toLocaleString(
+                              "id-ID",
+                            )}
                           </span>
                         </div>
                         <button 

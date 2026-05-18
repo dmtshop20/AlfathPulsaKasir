@@ -278,10 +278,10 @@ app.get("/api/branches", authenticateToken, async (req, res) => {
 });
 
 app.post("/api/branches", authenticateToken, async (req, res) => {
-  const { name, address, phone } = req.body;
+  const { name, address, phone, allowEmployeeInput } = req.body;
   try {
     const branch = await prisma.branch.create({
-      data: { name, address, phone }
+      data: { name, address, phone, allowEmployeeInput: allowEmployeeInput ?? true }
     });
     res.json(branch);
   } catch (error) {
@@ -290,11 +290,11 @@ app.post("/api/branches", authenticateToken, async (req, res) => {
 });
 
 app.patch("/api/branches/:id", authenticateToken, async (req, res) => {
-  const { name, address, phone } = req.body;
+  const { name, address, phone, allowEmployeeInput } = req.body;
   try {
     const branch = await prisma.branch.update({
       where: { id: req.params.id },
-      data: { name, address, phone }
+      data: { name, address, phone, allowEmployeeInput }
     });
     res.json(branch);
   } catch (error) {
@@ -303,11 +303,55 @@ app.patch("/api/branches/:id", authenticateToken, async (req, res) => {
 });
 
 app.delete("/api/branches/:id", authenticateToken, async (req, res) => {
+  if ((req as any).user.role !== "ADMIN") return res.status(403).json({ error: "Forbidden" });
+  const branchId = req.params.id;
   try {
-    await prisma.branch.delete({ where: { id: req.params.id } });
+    await prisma.$transaction(async (tx) => {
+      // Cleanup branch-specific data that can be safely removed
+      await tx.productStock.deleteMany({ where: { branchId } });
+      await tx.voucherSN.deleteMany({ where: { branchId, status: "available" } });
+      await tx.adjustment.deleteMany({ where: { branchId } });
+      
+      // Update users in this branch to have no branch
+      await tx.user.updateMany({
+        where: { branchId },
+        data: { branchId: null }
+      });
+
+      // Try deletion. Will still fail if there are Sales/Shifts (as it should for data integrity)
+      await tx.branch.delete({ where: { id: branchId } });
+    });
     res.json({ success: true });
+  } catch (error: any) {
+    console.error("Delete Branch Error:", error);
+    res.status(500).json({ error: "Gagal menghapus cabang. Pastikan cabang tidak memiliki data Penjualan atau Shift aktif." });
+  }
+});
+
+app.get("/api/config", async (req, res) => {
+  try {
+    const config = await prisma.globalConfig.upsert({
+      where: { id: "default" },
+      update: {},
+      create: { id: "default", allowCashierStockInput: true }
+    });
+    res.json(config);
   } catch (error) {
-    res.status(500).json({ error: "Failed to delete branch" });
+    res.status(500).json({ error: "Failed to fetch config" });
+  }
+});
+
+app.patch("/api/config", authenticateToken, async (req, res) => {
+  if ((req as any).user.role !== "ADMIN") return res.status(403).json({ error: "Forbidden" });
+  const { allowCashierStockInput } = req.body;
+  try {
+    const config = await prisma.globalConfig.update({
+      where: { id: "default" },
+      data: { allowCashierStockInput }
+    });
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update config" });
   }
 });
 
@@ -356,21 +400,33 @@ app.post("/api/sales", authenticateToken, async (req, res) => {
             qty: -item.qty
           }
         });
+      }
 
-        // Add Commission Records
-        if (item.commission && item.commission > 0) {
-          await tx.commission.create({
-            data: {
-              saleId: sale.id,
-              productId: item.productId,
-              qty: item.qty,
-              amount: item.commission,
-              cashierId: actualCashierId,
-              branchId: actualBranchId,
-              status: "earned"
-            }
-          });
+      // Add Commission Records and Update User Bonus Balance
+      if (items.some((i: any) => i.commission > 0)) {
+        for (const item of items) {
+          if (item.commission && item.commission > 0) {
+            await tx.commission.create({
+              data: {
+                saleId: sale.id,
+                productId: item.productId,
+                qty: item.qty,
+                amount: item.commission,
+                cashierId: actualCashierId,
+                branchId: actualBranchId,
+                status: "earned"
+              }
+            });
+          }
         }
+      }
+
+      // Automatically increment user's bonus balance
+      if (totalCommission > 0) {
+        await tx.user.update({
+          where: { id: actualCashierId },
+          data: { bonusBalance: { increment: totalCommission } }
+        });
       }
 
       return sale;
@@ -758,11 +814,18 @@ app.post("/api/sales/:id/refund", authenticateToken, async (req, res) => {
         });
       }
 
-      // 3. Update Commissions
+      // 3. Update Commissions and User Bonus Balance
       await tx.commission.updateMany({
         where: { saleId: sale.id },
         data: { status: "refunded", refundedAt: new Date() }
       });
+
+      if (sale.totalCommission > 0) {
+        await tx.user.update({
+          where: { id: sale.cashierId },
+          data: { bonusBalance: { decrement: sale.totalCommission } }
+        });
+      }
 
       return updatedSale;
     });
@@ -899,7 +962,13 @@ async function syncCredentials() {
       create: { username: "cashier", password: pHashCashier, name: "Kasir Toko", role: "CASHIER", branchId: branch.id, status: "Active" }
     });
 
-    console.log("✅ Credentials synchronized: admin (pw: admin123) and cashier (pw: cashier123)");
+    await prisma.globalConfig.upsert({
+      where: { id: "default" },
+      update: {},
+      create: { id: "default", allowCashierStockInput: true }
+    });
+
+    console.log("✅ Credentials and Global Config synchronized.");
   } catch (dbErr: any) {
     console.error("ℹ️ User synchronization check failed:", dbErr.message);
   }
