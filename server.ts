@@ -765,6 +765,32 @@ async function startApp() {
   try {
     await prisma.$connect();
     console.log("✅ Database connection established.");
+    
+    // Auto-seed for empty databases (e.g. fresh Railway deploy)
+    try {
+      const userCount = await prisma.user.count();
+      if (userCount === 0) {
+        console.log("⚠️ No users found in database. Running auto-seed...");
+        
+        const pHash1 = await bcrypt.hash("admin123", 10);
+        const pHash2 = await bcrypt.hash("cashier", 10);
+        
+        const branch = await prisma.branch.create({
+          data: { name: "Cabang Utama", address: "Cianjur", phone: "0812" }
+        });
+        
+        await prisma.user.createMany({
+          data: [
+            { username: "admin", password: pHash1, name: "Super Admin", role: "ADMIN", branchId: branch.id, status: "Active" },
+            { username: "cashier", password: pHash2, name: "Kasir 1", role: "CASHIER", branchId: branch.id, status: "Active" }
+          ]
+        });
+        console.log("✅ Auto-seed complete! Users created: admin (pw: admin123) and cashier (pw: cashier)");
+      }
+    } catch (dbErr: any) {
+      console.error("ℹ️ Auto-seed check skipped or failed:", dbErr.message);
+    }
+
   } catch (error: any) {
     console.error("❌ Database connection failed!");
     console.error("Error details:", error.message);
