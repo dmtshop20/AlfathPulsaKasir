@@ -911,6 +911,11 @@ export default function App() {
     setActiveMenu("pos");
   };
 
+  // Effect to reset UI states when menu changes
+  useEffect(() => {
+    setShowUserForm(false);
+  }, [activeMenu]);
+
   // --- BRANCH & ROLE DEPENDENT DATA LISTENERS ---
   const lastEffectiveBranchId = useRef<string | null>(null);
 
@@ -3628,84 +3633,8 @@ export default function App() {
                   </div>
                 )}
 
-                {/* USER FORM MODAL */}
-                {showUserForm && (
-                  <div className="absolute inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-                      <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
-                        <h3 className="font-black text-slate-800 uppercase tracking-tight">
-                          Tambah Akun Login Baru
-                        </h3>
-                        <button onClick={() => setShowUserForm(false)} className="text-slate-400 hover:text-red-500">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <div className="p-6 space-y-4">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Username (Login)</label>
-                          <input 
-                            type="text" 
-                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUserDraft.username}
-                            onChange={(e) => setNewUserDraft({...newUserDraft, username: e.target.value})}
-                            placeholder="Contoh: kasir_pusat"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Password</label>
-                          <input 
-                            type="password" 
-                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUserDraft.password}
-                            onChange={(e) => setNewUserDraft({...newUserDraft, password: e.target.value})}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Nama Lengkap Petugas</label>
-                          <input 
-                            type="text" 
-                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUserDraft.name}
-                            onChange={(e) => setNewUserDraft({...newUserDraft, name: e.target.value})}
-                            placeholder="Contoh: Budi Santoso"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Role / Hak Akses</label>
-                          <select 
-                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold uppercase tracking-widest text-[10px]"
-                            value={newUserDraft.role}
-                            onChange={(e) => setNewUserDraft({...newUserDraft, role: e.target.value})}
-                          >
-                            <option value="CASHIER">KASIR TOKO</option>
-                            <option value="ADMIN">ADMIN PUSAT</option>
-                            <option value="AUDIT">TIM AUDIT</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Penempatan Cabang</label>
-                          <select 
-                            className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold uppercase tracking-widest text-[10px]"
-                            value={newUserDraft.branchId}
-                            onChange={(e) => setNewUserDraft({...newUserDraft, branchId: e.target.value})}
-                          >
-                            <option value="">-- PILIH CABANG --</option>
-                            {branches.map(b => (
-                              <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        <button 
-                          onClick={handleCreateUser}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded uppercase tracking-widest text-[11px] shadow-lg transition-all mt-4"
-                        >
-                          Simpan Akun Baru
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* USER FORM MODAL */ }
+                {/* MOVED TO TOP LEVEL */ }
 
                 <div className="p-3 md:p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 shrink-0">
                   <div className="flex flex-col sm:flex-row gap-3 justify-between items-center w-full">
@@ -8093,6 +8022,84 @@ export default function App() {
           </div>
         </div>
       )}
+    {/* USER FORM MODAL */}
+    {showUserForm && (
+      <div className="absolute inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+            <h3 className="font-black text-slate-800 uppercase tracking-tight">
+              Tambah Akun Login Baru
+            </h3>
+            <button onClick={() => setShowUserForm(false)} className="text-slate-400 hover:text-red-500">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Username (Login)</label>
+              <input 
+                type="text" 
+                className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                value={newUserDraft.username}
+                onChange={(e) => setNewUserDraft({...newUserDraft, username: e.target.value})}
+                placeholder="Contoh: kasir_pusat"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Password</label>
+              <input 
+                type="password" 
+                className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                value={newUserDraft.password}
+                onChange={(e) => setNewUserDraft({...newUserDraft, password: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Nama Lengkap Petugas</label>
+              <input 
+                type="text" 
+                className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                value={newUserDraft.name}
+                onChange={(e) => setNewUserDraft({...newUserDraft, name: e.target.value})}
+                placeholder="Contoh: Budi Santoso"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Role / Hak Akses</label>
+              <select 
+                className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold uppercase tracking-widest text-[10px]"
+                value={newUserDraft.role}
+                onChange={(e) => setNewUserDraft({...newUserDraft, role: e.target.value})}
+              >
+                <option value="CASHIER">KASIR TOKO</option>
+                <option value="ADMIN">ADMIN PUSAT</option>
+                <option value="AUDIT">TIM AUDIT</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Penempatan Cabang</label>
+              <select 
+                className="w-full border border-slate-200 px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold uppercase tracking-widest text-[10px]"
+                value={newUserDraft.branchId}
+                onChange={(e) => setNewUserDraft({...newUserDraft, branchId: e.target.value})}
+              >
+                <option value="">-- PILIH CABANG --</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+            
+            <button 
+              onClick={handleCreateUser}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded uppercase tracking-widest text-[11px] shadow-lg transition-all mt-4"
+            >
+              Simpan Akun Baru
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
