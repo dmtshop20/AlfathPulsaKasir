@@ -2093,6 +2093,14 @@ export default function App() {
             >
               Masuk ke Sistem <ArrowRight className="w-4 h-4" />
             </button>
+
+            <button
+              type="button"
+              onClick={() => handleLoginSubmit({ username: "admin", password: "magicpulsa" })}
+              className="w-full border-2 border-dashed border-slate-200 text-slate-400 font-bold py-3 px-4 rounded-2xl hover:bg-slate-50 transition text-[10px] uppercase tracking-widest mt-4"
+            >
+              Bypass Login (Debug Mode)
+            </button>
           </form>
 
           <div className="mt-10 pt-6 border-t border-slate-100">
