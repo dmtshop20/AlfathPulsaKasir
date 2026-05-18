@@ -15,11 +15,18 @@ export const ProductTable = ({
   return (
     <tbody className="divide-y divide-slate-100 text-sm">
       {CATEGORIES.map(category => {
-        const catProducts = products.filter(p => 
-          p && 
-          p.category === category && 
-          ((p.name || "").toLowerCase().includes((searchTerm || "").toLowerCase()) || (p.barcode || "").includes(searchTerm))
-        );
+        const catProducts = products.filter(p => {
+          if (!p) return false;
+          const searchMatch = (p.name || "").toLowerCase().includes((searchTerm || "").toLowerCase()) || (p.barcode || "").includes(searchTerm);
+          if (!searchMatch) return false;
+
+          if (category === "Lainnya") {
+            // Products with no category or category not in the standard list
+            const standardCategories = CATEGORIES.filter(c => c !== "Lainnya");
+            return !p.category || !standardCategories.includes(p.category);
+          }
+          return p.category === category;
+        });
         if (catProducts.length === 0) return null;
         
         const brandsInCategory = Array.from(new Set(catProducts.map(p => p.brand || 'Lainnya')));

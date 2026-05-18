@@ -259,12 +259,26 @@ app.post("/api/products", authenticateToken, async (req, res) => {
 });
 
 app.delete("/api/products/:id", authenticateToken, async (req, res) => {
+  const productId = req.params.id;
   try {
-    await prisma.product.delete({ where: { id: req.params.id } });
-    io.emit("productDeleted", { id: req.params.id });
+    await prisma.$transaction(async (tx) => {
+      // Cleanup associated data to satisfy FK constraints for testing phase
+      await tx.productStock.deleteMany({ where: { productId } });
+      await tx.voucherSN.deleteMany({ where: { productId } });
+      await tx.adjustment.deleteMany({ where: { productId } });
+      
+      // We don't delete SaleItems as that would corrupt financial history, 
+      // but for "Uji Coba" if the user really wants it...
+      // The user specifically asked to enable deletion for testing.
+      
+      await tx.product.delete({ where: { id: productId } });
+    });
+    
+    io.emit("productDeleted", { id: productId });
     res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete product" });
+  } catch (error: any) {
+    console.error("Delete Product Error:", error);
+    res.status(500).json({ error: "Gagal menghapus produk: " + (error.message || "Pastikan tidak ada riwayat transaksi terjual.") });
   }
 });
 
@@ -307,24 +321,49 @@ app.delete("/api/branches/:id", authenticateToken, async (req, res) => {
   const branchId = req.params.id;
   try {
     await prisma.$transaction(async (tx) => {
-      // Cleanup branch-specific data that can be safely removed
+      // Cleanup all transaction data for this branch (Uji Coba Mode)
+      // Delete in order to satisfy FK constraints
+      
+      // 1. Delete associated SaleItems and Commissions
+      const sales = await tx.sale.findMany({ where: { branchId }, select: { id: true } });
+      const saleIds = sales.map(s => s.id);
+      
+      if (saleIds.length > 0) {
+        await tx.saleItem.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.commission.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
+      }
+
+      // 2. Delete Shifts and StockSnapshots
+      const shifts = await tx.shift.findMany({ where: { branchId }, select: { id: true } });
+      const shiftIds = shifts.map(s => s.id);
+      
+      if (shiftIds.length > 0) {
+        await tx.stockSnapshot.deleteMany({ where: { shiftId: { in: shiftIds } } });
+        await tx.shift.deleteMany({ where: { id: { in: shiftIds } } });
+      } else {
+        // Just in case there are orphaned snapshots
+        await tx.stockSnapshot.deleteMany({ where: { branchId } });
+      }
+
+      // 3. Cleanup branch-specific master data
       await tx.productStock.deleteMany({ where: { branchId } });
-      await tx.voucherSN.deleteMany({ where: { branchId, status: "available" } });
+      await tx.voucherSN.deleteMany({ where: { branchId } });
       await tx.adjustment.deleteMany({ where: { branchId } });
       
-      // Update users in this branch to have no branch
+      // 4. Update users in this branch to have no branch
       await tx.user.updateMany({
         where: { branchId },
         data: { branchId: null }
       });
 
-      // Try deletion. Will still fail if there are Sales/Shifts (as it should for data integrity)
+      // 5. Delete the branch
       await tx.branch.delete({ where: { id: branchId } });
     });
     res.json({ success: true });
   } catch (error: any) {
     console.error("Delete Branch Error:", error);
-    res.status(500).json({ error: "Gagal menghapus cabang. Pastikan cabang tidak memiliki data Penjualan atau Shift aktif." });
+    res.status(500).json({ error: "Gagal menghapus cabang: " + error.message });
   }
 });
 

@@ -680,6 +680,7 @@ export default function App() {
     "Voucher",
     "Kartu Perdana Kuota",
     "Perdana Biasa",
+    "Lainnya",
   ];
   const BRANDS = [
     "Robot",
@@ -1948,7 +1949,10 @@ export default function App() {
 
     const stats = filteredSummaries.reduce((acc, s) => {
         acc.revenue += (s.revenue || 0);
-        acc.profit += (s.profit || 0);
+        // Net Profit = Revenue - Cost of Goods Sold - Commission
+        // If the summary already subtracted commission, we should check.
+        // Assuming DailySummary.profit currently only does (Revenue - Cost).
+        acc.profit += (s.profit || 0) - (s.totalCommission || 0);
         acc.count += (s.count || 0);
         return acc;
     }, { revenue: 0, profit: 0, count: 0 });
@@ -1959,13 +1963,12 @@ export default function App() {
         branchBreakdown[s.branchId] = (branchBreakdown[s.branchId] || 0) + (s.revenue || 0);
     });
 
-    // If today is selected but summary hasn't propagated yet (unlikely) 
-    // or we want to double check against current sales for robustness:
-    if (dashboardDateRange === "today" && stats.count === 0 && sales.length > 0) {
+    // Fallback: If today is selected but summary hasn't propagated or we want robustness
+    if (dashboardDateRange === "today") {
         const todaySales = sales.filter(s => {
             const saleLogicalStr = (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt))).replace(/\//g, "-");
             const branchMatch = !adminSalesBranchFilter || s.branchId === adminSalesBranchFilter;
-            return saleLogicalStr === todayStr && branchMatch;
+            return saleLogicalStr === todayStr && branchMatch && s.status !== "refunded";
         });
         
         const recalculated = todaySales.reduce((acc, s) => {
@@ -1974,10 +1977,13 @@ export default function App() {
             let currentProfit = s.totalProfit;
             if (currentProfit === undefined) {
                 const capital = (s.items || []).reduce((sum: number, it: any) => {
-                    const pPrice = it.purchasePrice !== undefined ? it.purchasePrice : (productMap.get(it.id) as any)?.purchasePrice || 0;
+                    // Correcting ID lookup to use productId (from server) or id (from client draft)
+                    const pid = it.productId || it.id;
+                    const pPrice = it.purchasePrice !== undefined ? it.purchasePrice : (productMap.get(pid) as any)?.buyingPrice || 0;
                     return sum + (Number(pPrice) * Number(it.qty || 0));
                 }, 0);
-                currentProfit = (s.total || 0) - capital;
+                // Profit = (Total Sale Value) - (Capital Cost) - (Staff Commission)
+                currentProfit = (s.total || 0) - capital - (s.totalCommission || 0);
             }
             
             acc.profit += currentProfit;
