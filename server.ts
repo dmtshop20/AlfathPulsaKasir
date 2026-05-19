@@ -233,8 +233,8 @@ app.get("/api/products", authenticateToken, async (req, res) => {
     }));
     res.json(formattedProducts);
   } catch (error) {
-    console.error("Fetch Products Error:", error);
-    res.status(500).json({ error: "Failed to fetch products" });
+    console.error("Fetch Products Error (DEBUG):", error);
+    res.status(500).json({ error: "Failed to fetch products", details: (error as Error).message });
   }
 });
 

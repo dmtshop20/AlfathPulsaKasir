@@ -86,6 +86,7 @@ import { api } from "./services/api";
 import { useBarcodeScanner } from "./hooks/useBarcodeScanner";
 
 import { ProductTable } from "./components/ProductTable";
+import { CustomSelect } from "./components/CustomSelect";
 const ScannerModal = ({
   onClose,
   onScan,
@@ -678,11 +679,32 @@ export default function App() {
   const [prodMasterSN, setProdMasterSN] = useState("");
   const [prodVisibleBranchIds, setProdVisibleBranchIds] = useState<string>("*");
 
+  const PRODUCT_HIERARCHY = {
+    "Aksesoris": {
+      brands: ["Robot", "Vivan", "Foomee", "Oraimo", "Baseus", "Anker", "Jete", "Lenyes"],
+      models: ["Charger", "Headset", "Headset Bluetooth", "Kabel Data", "Powerbank", "Tempered Glass", "Speaker", "Casing"]
+    },
+    "Voucher": {
+      providers: ["Telkomsel", "Indosat", "XL", "Axis", "Tri", "Smartfren"]
+    },
+    "Kartu Perdana Kuota": {
+      providers: ["Telkomsel", "Indosat", "XL", "Axis", "Tri", "Smartfren"]
+    },
+    "Kartu Perdana Biasa": {
+      providers: ["Telkomsel", "Indosat", "XL", "Axis", "Tri", "Smartfren"]
+    },
+    "Handphone": {
+      brands: ["Samsung", "iPhone", "Xiaomi", "Vivo", "Oppo", "Realme", "Infinix", "Redmi"]
+    }
+  };
+
   const DEFAULT_CATEGORIES = [
     "Aksesoris",
     "Voucher",
     "Kartu Perdana Kuota",
-    "Perdana Biasa",
+    "Kartu Perdana Biasa",
+    "Handphone",
+    "Parfum"
   ];
   const BRANDS = [
     "Robot",
@@ -726,19 +748,29 @@ export default function App() {
   }, [products]);
 
   const dynamicBrands = useMemo(() => {
+    if (prodCategory === "Aksesoris") return PRODUCT_HIERARCHY["Aksesoris"].brands;
+    if (prodCategory === "Handphone") return PRODUCT_HIERARCHY["Handphone"].brands;
+    if (["Voucher", "Kartu Perdana Kuota", "Kartu Perdana Biasa"].includes(prodCategory))
+      return PRODUCT_HIERARCHY["Voucher"].providers;
+    
     const existing = products.map((p) => p.brand).filter(Boolean);
     return Array.from(new Set([...BRANDS, ...existing]));
-  }, [products]);
+  }, [products, prodCategory]);
 
   const dynamicSubCategories = useMemo(() => {
-    const existing = products.map((p) => p.subCategory).filter(Boolean);
-    return Array.from(new Set([...ACC_SUB_CATEGORIES, ...existing]));
-  }, [products]);
+    if (prodCategory === "Aksesoris") {
+      return PRODUCT_HIERARCHY["Aksesoris"].models;
+    }
+    return [];
+  }, [products, prodCategory]);
 
   const dynamicProviders = useMemo(() => {
+    if (["Voucher", "Kartu Perdana Kuota", "Kartu Perdana Biasa"].includes(prodCategory))
+      return PRODUCT_HIERARCHY["Voucher"].providers;
+    
     const existing = products.map((p) => p.provider).filter(Boolean);
     return Array.from(new Set([...PROVIDERS, ...existing]));
-  }, [products]);
+  }, [products, prodCategory]);
 
 
   // Derive all categories present in products + defaults
@@ -3514,18 +3546,18 @@ export default function App() {
                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1.5 focus-within:text-blue-600 transition-colors">
                                   Kategori Produk
                                 </label>
-                                <div className="relative group">
-                                  <input
-                                    list="category-suggestions"
-                                    value={prodCategory}
-                                    onChange={(e) => setProdCategory(e.target.value)}
-                                    placeholder="Ketik atau pilih Kategori"
-                                    className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold transition-all shadow-sm"
-                                  />
-                                  <datalist id="category-suggestions">
-                                    {dynamicCategories.map(c => <option key={c} value={c} />)}
-                                  </datalist>
-                                </div>
+                                <CustomSelect 
+                                  label="Kategori Produk"
+                                  value={prodCategory}
+                                  onChange={(val) => {
+                                    setProdCategory(val);
+                                    setProdBrand("");
+                                    setProdSubCategory("");
+                                    setProdProvider("");
+                                  }}
+                                  options={dynamicCategories}
+                                  placeholder="Ketik atau pilih Kategori"
+                                />
                               </div>
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3534,56 +3566,46 @@ export default function App() {
                                     Merek (Brand)
                                   </label>
                                   <div className="relative group">
+                                  {prodCategory === "Parfum" ? (
                                     <input
-                                      list="brand-list"
+                                      type="text"
                                       value={prodBrand}
-                                      onChange={(e) => {
-                                        const val = e.target.value.toUpperCase();
-                                        setProdBrand(val);
-                                        if (val && !prodProvider) setProdProvider(val);
-                                      }}
+                                      onChange={(e) => setProdBrand(e.target.value)}
                                       placeholder="Ketik Merek"
-                                      className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold uppercase transition-all shadow-sm"
+                                      className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold transition-all shadow-sm"
                                     />
-                                    <datalist id="brand-list">
-                                      {dynamicBrands.map(b => <option key={b} value={b} />)}
-                                    </datalist>
+                                  ) : (
+                                    <CustomSelect 
+                                      label="Merek (Brand)"
+                                      value={prodBrand}
+                                      onChange={(val) => {
+                                        setProdBrand(val);
+                                        setProdSubCategory("");
+                                      }}
+                                      options={dynamicBrands}
+                                      placeholder="Ketik Merek"
+                                    />
+                                  )}
                                   </div>
                                 </div>
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                                    Model / Sub-Kategori
-                                  </label>
-                                  <div className="relative">
-                                    <input
-                                      list="sub-cat-list"
+                                { prodCategory === "Aksesoris" && (
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                      Model / Sub-Kategori
+                                    </label>
+                                    <div className="relative">
+                                    <CustomSelect 
+                                      label="Model / Sub-Kategori"
                                       value={prodSubCategory}
-                                      onChange={(e) => setProdSubCategory(e.target.value)}
-                                      placeholder="Ketik Model"
-                                      className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all outline-none"
+                                      onChange={setProdSubCategory}
+                                      options={dynamicSubCategories}
+                                      placeholder="Ketik Model..."
                                     />
-                                    <datalist id="sub-cat-list">
-                                      {dynamicSubCategories.map(s => <option key={s} value={s} />)}
-                                    </datalist>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                               </div>
 
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                                  Provider Jaringan (Opsional)
-                                </label>
-                                <input
-                                  list="provider-list"
-                                  value={prodProvider}
-                                  onChange={(e) => setProdProvider(e.target.value.toUpperCase())}
-                                  placeholder="Ketik Provider"
-                                  className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold uppercase transition-all outline-none"
-                                />
-                                <datalist id="provider-list">
-                                  {dynamicProviders.map(p => <option key={p} value={p} />)}
-                                </datalist>
-                              </div>
                             </div>
 
                             {/* Column 2: Visibility & Settings */}
@@ -3706,23 +3728,7 @@ export default function App() {
                                 </div>
                               </div>
                             </div>
-                            {prodCategory === "Voucher" && (
-                              <div className="sm:col-span-2">
-                                <label className="block text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1.5 flex justify-between">
-                                  <span>Nomor SN Master (Voucher)</span>
-                                  <span className="text-[9px] text-slate-400 normal-case font-bold italic">
-                                    SN Referensi untuk seluruh pcs voucher ini
-                                  </span>
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="Cth: 1234567890..."
-                                  value={prodMasterSN}
-                                  onChange={(e) => setProdMasterSN(e.target.value)}
-                                  className="w-full border-2 border-indigo-100 rounded px-3 py-2 text-sm focus:border-indigo-500 outline-none font-mono"
-                                />
-                              </div>
-                            )}
+
                           </div>
 
                           <div>
