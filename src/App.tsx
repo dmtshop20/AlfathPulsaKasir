@@ -694,7 +694,16 @@ export default function App() {
       providers: ["Telkomsel", "Indosat", "XL", "Axis", "Tri", "Smartfren"]
     },
     "Handphone": {
-      brands: ["Samsung", "iPhone", "Xiaomi", "Vivo", "Oppo", "Realme", "Infinix", "Redmi"]
+      brands: {
+        "Samsung": ["Galaxy S24", "Galaxy A55", "Galaxy A35", "Galaxy S23"],
+        "iPhone": ["iPhone 15", "iPhone 14", "iPhone 13", "iPhone 12"],
+        "Xiaomi": ["Redmi Note 13", "Xiaomi 13T", "Poco X6"],
+        "Vivo": ["V30", "Y27", "Y17s"],
+        "Oppo": ["Reno 11", "A98", "A58"],
+        "Realme": ["12 Pro+", "C67", "C55"],
+        "Infinix": ["Note 40", "Hot 40", "Smart 8"],
+        "Redmi": ["Note 12", "12", "10"]
+      }
     }
   };
 
@@ -749,7 +758,7 @@ export default function App() {
 
   const dynamicBrands = useMemo(() => {
     if (prodCategory === "Aksesoris") return PRODUCT_HIERARCHY["Aksesoris"].brands;
-    if (prodCategory === "Handphone") return PRODUCT_HIERARCHY["Handphone"].brands;
+    if (prodCategory === "Handphone") return Object.keys(PRODUCT_HIERARCHY["Handphone"].brands);
     if (["Voucher", "Kartu Perdana Kuota", "Kartu Perdana Biasa"].includes(prodCategory))
       return PRODUCT_HIERARCHY["Voucher"].providers;
     
@@ -761,8 +770,11 @@ export default function App() {
     if (prodCategory === "Aksesoris") {
       return PRODUCT_HIERARCHY["Aksesoris"].models;
     }
+    if (prodCategory === "Handphone" && prodBrand && PRODUCT_HIERARCHY["Handphone"].brands[prodBrand]) {
+      return PRODUCT_HIERARCHY["Handphone"].brands[prodBrand];
+    }
     return [];
-  }, [products, prodCategory]);
+  }, [products, prodCategory, prodBrand]);
 
   const dynamicProviders = useMemo(() => {
     if (["Voucher", "Kartu Perdana Kuota", "Kartu Perdana Biasa"].includes(prodCategory))
@@ -955,6 +967,10 @@ export default function App() {
 
     socket.on("productUpdated", (updatedProduct: any) => {
       setProducts(prev => prev.map(p => p.id === updatedProduct.id ? { ...p, ...updatedProduct } : p));
+    });
+
+    socket.on("productDeleted", (data: { id: string }) => {
+      setProducts(prev => prev.filter(p => p.id !== data.id));
     });
 
     return () => {
@@ -3588,7 +3604,7 @@ export default function App() {
                                   )}
                                   </div>
                                 </div>
-                                { prodCategory === "Aksesoris" && (
+                                { (prodCategory === "Aksesoris" || prodCategory === "Handphone") && (
                                   <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
                                       Model / Sub-Kategori
