@@ -682,7 +682,7 @@ export default function App() {
   const PRODUCT_HIERARCHY = {
     "Aksesoris": {
       brands: ["Robot", "Vivan", "Foomee", "Oraimo", "Baseus", "Anker", "Jete", "Lenyes"],
-      models: ["Charger", "Headset", "Headset Bluetooth", "Kabel Data", "Powerbank", "Tempered Glass", "Speaker", "Casing"]
+      models: ["Charger", "Kepala Charger", "Flashdisk", "Headset", "Headset Bluetooth", "Kabel Data", "Powerbank", "Tempered Glass", "Speaker", "Casing"]
     },
     "Voucher": {
       providers: ["Telkomsel", "Indosat", "XL", "Axis", "Tri", "Smartfren"]
@@ -749,6 +749,7 @@ export default function App() {
     "Speaker",
     "Casing",
     "Baterai",
+    "Flashdisk",
   ];
 
   // Dynamic Suggestion Lists for Product Form
