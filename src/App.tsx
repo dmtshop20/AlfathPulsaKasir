@@ -581,6 +581,22 @@ export default function App() {
   const [showShiftSummary, setShowShiftSummary] = useState<number | null>(null);
   const [actualCashInput, setActualCashInput] = useState<string>("");
 
+  const getProductName = (p: any, fallback?: string) => {
+    if (!p) return fallback || "Bonus";
+    const provider = p.provider || p.brand || "";
+    let displayName = p.name || fallback || "Produk";
+    
+    // Enhanced names for Voucher/Perdana
+    if (p.category === "Voucher" || p.category?.includes("Perdana")) {
+      if (displayName.toLowerCase().startsWith("voucher")) {
+        displayName = displayName.replace(/voucher/i, provider || "Voucher").trim();
+      } else if (provider && !displayName.toLowerCase().includes(provider.toLowerCase())) {
+        displayName = `${provider} ${displayName}`.trim();
+      }
+    }
+    return displayName;
+  };
+
   useEffect(() => {
     // connectivity check
     const checkConn = async () => {
@@ -681,7 +697,7 @@ export default function App() {
 
   const PRODUCT_HIERARCHY = {
     "Aksesoris": {
-      brands: ["Robot", "Vivan", "Foomee", "Oraimo", "Baseus", "Anker", "Jete", "Lenyes"],
+      brands: ["Robot", "Vivan", "Foomee", "Oraimo", "Baseus", "Anker", "Jete", "Lenyes", "Kivee", "Olike", "Rexsi", "Acome", "Ugreen", "Newest"],
       models: ["Charger", "Kepala Charger", "Flashdisk", "Headset", "Headset Bluetooth", "Kabel Data", "Powerbank", "Tempered Glass", "Speaker", "Casing"]
     },
     "Voucher": {
@@ -728,6 +744,9 @@ export default function App() {
     "Lenyes",
     "Jete",
     "Baseus",
+    "Acome",
+    "Ugreen",
+    "Newest",
   ];
   const PROVIDERS = [
     "Telkomsel",
@@ -4022,18 +4041,7 @@ export default function App() {
                             <tr key={p.id} className="hover:bg-slate-50">
                               <td className="px-4 py-3">
                                 <p className="font-bold text-slate-800">
-                                  {(() => {
-                                    const provider = p.provider || p.brand || "";
-                                    let displayName = p.name;
-                                    if (p.category === "Voucher" || p.category?.includes("Perdana")) {
-                                      if (displayName.toLowerCase().startsWith("voucher")) {
-                                        displayName = displayName.replace(/voucher/i, provider || "Voucher").trim();
-                                      } else if (provider && !displayName.toLowerCase().includes(provider.toLowerCase())) {
-                                        displayName = `${provider} ${displayName}`.trim();
-                                      }
-                                    }
-                                    return displayName;
-                                  })()}
+                                  {getProductName(p)}
                                 </p>
                                 <p className="text-[10px] font-mono text-slate-500 mt-0.5">
                                   {p.barcode}
@@ -7420,7 +7428,9 @@ export default function App() {
                             {commissions.slice(0, 10).map((c, idx) => (
                               <div key={idx} className="flex justify-between items-start border-b border-slate-50 pb-4">
                                 <div className="min-w-0">
-                                  <p className="text-[10px] font-black text-slate-800 uppercase truncate">{c.productName || "Produk"}</p>
+                                  <p className="text-[10px] font-black text-slate-800 uppercase truncate">
+                                    {getProductName(c.product, c.productName)}
+                                  </p>
                                   <p className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">
                                     {users.find(u => u.id === c.cashierId)?.name || c.cashierName || "Karyawan"} • {c.createdAt ? new Date(c.createdAt).toLocaleDateString("id-ID") : "-"}
                                   </p>
@@ -7491,7 +7501,9 @@ export default function App() {
                                     {c.status === "refunded" ? <RotateCcw className="w-5 h-5" /> : <Tag className="w-5 h-5" />}
                                   </div>
                                   <div>
-                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{c.product?.name || c.productName || "Bonus"}</p>
+                                    <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight">
+                                      {getProductName(c.product, c.productName)}
+                                    </p>
                                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
                                       {new Date(c.createdAt).toLocaleTimeString("id-ID")} • {new Date(c.createdAt).toLocaleDateString("id-ID")}
                                     </p>
