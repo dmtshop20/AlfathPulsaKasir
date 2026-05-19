@@ -713,7 +713,8 @@ export default function App() {
     "Kartu Perdana Kuota",
     "Kartu Perdana Biasa",
     "Handphone",
-    "Parfum"
+    "Parfum",
+    "Lain-lain"
   ];
   const BRANDS = [
     "Robot",
@@ -788,8 +789,10 @@ export default function App() {
   // Derive all categories present in products + defaults
   const ALL_CATEGORIES = Array.from(new Set([
     ...DEFAULT_CATEGORIES,
-    ...products.filter(p => p.category).map(p => p.category!)
-  ]));
+    ...products
+      .filter(p => p.category && p.category !== "UMUM" && p.category !== "LAINNYA")
+      .map(p => p.category!)
+  ])).filter(c => c !== "UMUM" && c !== "LAINNYA");
 
   // Auto-focus search input in POS
   useEffect(() => {
@@ -3579,7 +3582,7 @@ export default function App() {
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 focus-within:text-blue-600 transition-colors">
-                                    Merek (Brand)
+                                    { (prodCategory === "Voucher" || prodCategory?.includes("Perdana")) ? "Provider / Operator" : "Merek (Brand)" }
                                   </label>
                                   <div className="relative group">
                                   {prodCategory === "Parfum" ? (
@@ -3592,14 +3595,19 @@ export default function App() {
                                     />
                                   ) : (
                                     <CustomSelect 
-                                      label="Merek (Brand)"
-                                      value={prodBrand}
+                                      label={ (prodCategory === "Voucher" || prodCategory?.includes("Perdana")) ? "Pilih Provider" : "Merek (Brand)" }
+                                      value={ (prodCategory === "Voucher" || prodCategory?.includes("Perdana")) ? prodProvider : prodBrand }
                                       onChange={(val) => {
-                                        setProdBrand(val);
+                                        if (prodCategory === "Voucher" || prodCategory?.includes("Perdana")) {
+                                          setProdProvider(val);
+                                          setProdBrand(val); // Keep brand in sync for legacy or generic checks
+                                        } else {
+                                          setProdBrand(val);
+                                        }
                                         setProdSubCategory("");
                                       }}
-                                      options={dynamicBrands}
-                                      placeholder="Ketik Merek"
+                                      options={ (prodCategory === "Voucher" || prodCategory?.includes("Perdana")) ? dynamicProviders : dynamicBrands }
+                                      placeholder={ (prodCategory === "Voucher" || prodCategory?.includes("Perdana")) ? "Pilih Provider" : "Ketik Merek" }
                                     />
                                   )}
                                   </div>
@@ -3965,8 +3973,6 @@ export default function App() {
                         const filtered = products.filter(
                           (p) =>
                             p &&
-                            p.category &&
-                            p.category !== "UMUM" &&
                             (!searchTerm ||
                               (p.name || "")
                                 .toLowerCase()
@@ -3989,19 +3995,15 @@ export default function App() {
                                       ? "provider"
                                       : "brand";
                                   return (
-                                    (p.category || "UMUM") ===
-                                      drillPath[0] &&
-                                    (p[field] || "UMUM") === drillPath[1]
+                                    (p.category || "Lain-lain") === drillPath[0] &&
+                                    (p[field] || p.brand || p.provider || drillPath[0]) === drillPath[1]
                                   );
                                 }
                                 if (drillPath.length === 3) {
                                   return (
-                                    (p.category || "UMUM") ===
-                                      drillPath[0] &&
-                                    (p.brand || "UMUM") ===
-                                      drillPath[1] &&
-                                    (p.subCategory || "UMUM") ===
-                                      drillPath[2]
+                                    (p.category || "Lain-lain") === drillPath[0] &&
+                                    (p.brand || p.provider || drillPath[0]) === drillPath[1] &&
+                                    (p.subCategory || drillPath[0]) === drillPath[2]
                                   );
                                 }
                                 return true;
@@ -4019,12 +4021,21 @@ export default function App() {
                             <tr key={p.id} className="hover:bg-slate-50">
                               <td className="px-4 py-3">
                                 <p className="font-bold text-slate-800">
-                                  {p.category === "Voucher" || p.category?.includes("Perdana") 
-                                    ? (p.provider || p.brand || p.name) 
-                                    : p.name}
+                                  {(() => {
+                                    const provider = p.provider || p.brand || "";
+                                    let displayName = p.name;
+                                    if (p.category === "Voucher" || p.category?.includes("Perdana")) {
+                                      if (displayName.toLowerCase().startsWith("voucher")) {
+                                        displayName = displayName.replace(/voucher/i, provider || "Voucher").trim();
+                                      } else if (provider && !displayName.toLowerCase().includes(provider.toLowerCase())) {
+                                        displayName = `${provider} ${displayName}`.trim();
+                                      }
+                                    }
+                                    return displayName;
+                                  })()}
                                 </p>
                                 <p className="text-[10px] font-mono text-slate-500 mt-0.5">
-                                  {p.category === "Voucher" || p.category?.includes("Perdana") ? p.name : p.barcode}
+                                  {p.barcode}
                                 </p>
                               </td>
                               <td className="px-4 py-3">
@@ -4104,8 +4115,7 @@ export default function App() {
                         let groups: any = {};
                         if (drillPath.length === 0) {
                           groups = filtered.reduce((acc: any, p) => {
-                            if (!p.category) return acc;
-                            const val = p.category;
+                            const val = p.category && p.category !== "UMUM" && p.category !== "LAINNYA" ? p.category : "Lain-lain";
                             if (!acc[val]) acc[val] = [];
                             acc[val].push(p);
                             return acc;
@@ -4117,10 +4127,9 @@ export default function App() {
                               ? "provider"
                               : "brand";
                           groups = filtered
-                            .filter((p) => p.category === cat)
+                            .filter((p) => (p.category || "Lain-lain") === cat)
                             .reduce((acc: any, p) => {
-                              if (!p[field]) return acc;
-                              const val = p[field];
+                              const val = p[field] || p.brand || p.provider || cat;
                               if (!acc[val]) acc[val] = [];
                               acc[val].push(p);
                               return acc;
@@ -4130,12 +4139,11 @@ export default function App() {
                           groups = filtered
                             .filter(
                               (p) =>
-                                p.category === cat &&
-                                p.brand === brand,
+                                (p.category || "Lain-lain") === cat &&
+                                (p.brand || p.provider || cat) === brand,
                             )
                             .reduce((acc: any, p) => {
-                              if (!p.subCategory) return acc;
-                              const val = p.subCategory;
+                              const val = p.subCategory || cat;
                               if (!acc[val]) acc[val] = [];
                               acc[val].push(p);
                               return acc;

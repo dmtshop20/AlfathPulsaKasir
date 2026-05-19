@@ -20,20 +20,30 @@ export const ProductTable = ({
           const searchMatch = (p.name || "").toLowerCase().includes((searchTerm || "").toLowerCase()) || (p.barcode || "").includes(searchTerm);
           if (!searchMatch) return false;
 
-          return (p.category || "UMUM") === category;
+          return (p.category || "LAINNYA") === category;
         });
         if (catProducts.length === 0) return null;
         
-        const brandsInCategory = Array.from(new Set(catProducts.map(p => p.brand || 'UMUM')));
+        const brandsInCategory = Array.from(new Set(catProducts.map(p => {
+          if (p.category === "Voucher" || p.category?.includes("Perdana")) {
+            return p.provider || p.brand || category;
+          }
+          return p.brand || p.subCategory || category;
+        })));
 
         return (
           <React.Fragment key={category}>
-            <tr className="bg-blue-50/50">
-              <td colSpan={5} className="px-4 py-3 font-black uppercase tracking-widest text-[11px] text-blue-800 border-b-2 border-blue-200">{category}</td>
+            <tr className="bg-blue-50/50 text-blue-900">
+              <td colSpan={5} className="px-4 py-3 font-black uppercase tracking-widest text-[11px] border-b-2 border-blue-200">{category}</td>
             </tr>
             {brandsInCategory.map(brand => {
               const group = catProducts
-                .filter(p => (p.brand || 'UMUM') === brand)
+                .filter(p => {
+                  const pBrand = (p.category === "Voucher" || p.category?.includes("Perdana"))
+                    ? (p.provider || p.brand || category)
+                    : (p.brand || p.subCategory || category);
+                  return pBrand === brand;
+                })
                 .sort((a, b) => {
                   const priceA = a.discountPrice > 0 ? a.discountPrice : a.sellingPrice;
                   const priceB = b.discountPrice > 0 ? b.discountPrice : b.sellingPrice;
@@ -47,7 +57,20 @@ export const ProductTable = ({
                   {group.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <p className="font-bold text-slate-800">{p.name}</p>
+                        <p className="font-bold text-slate-800">
+                          {(() => {
+                            const provider = p.provider || p.brand || "";
+                            let displayName = p.name;
+                            if (p.category === "Voucher" || p.category?.includes("Perdana")) {
+                              if (displayName.toLowerCase().startsWith("voucher")) {
+                                displayName = displayName.replace(/voucher/i, provider || "Voucher").trim();
+                              } else if (provider && !displayName.toLowerCase().includes(provider.toLowerCase())) {
+                                displayName = `${provider} ${displayName}`.trim();
+                              }
+                            }
+                            return displayName;
+                          })()}
+                        </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <p className="text-[10px] font-mono text-slate-500">{p.barcode}</p>
                           {p.masterSN && <p className="text-[10px] font-black text-purple-600 bg-purple-50 px-1 rounded uppercase">M-SN: {p.masterSN}</p>}
