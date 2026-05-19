@@ -3965,6 +3965,8 @@ export default function App() {
                         const filtered = products.filter(
                           (p) =>
                             p &&
+                            p.category &&
+                            p.category !== "UMUM" &&
                             (!searchTerm ||
                               (p.name || "")
                                 .toLowerCase()
@@ -4017,10 +4019,12 @@ export default function App() {
                             <tr key={p.id} className="hover:bg-slate-50">
                               <td className="px-4 py-3">
                                 <p className="font-bold text-slate-800">
-                                  {p.name}
+                                  {p.category === "Voucher" || p.category?.includes("Perdana") 
+                                    ? (p.provider || p.brand || p.name) 
+                                    : p.name}
                                 </p>
                                 <p className="text-[10px] font-mono text-slate-500 mt-0.5">
-                                  {p.barcode}
+                                  {p.category === "Voucher" || p.category?.includes("Perdana") ? p.name : p.barcode}
                                 </p>
                               </td>
                               <td className="px-4 py-3">
@@ -4100,7 +4104,8 @@ export default function App() {
                         let groups: any = {};
                         if (drillPath.length === 0) {
                           groups = filtered.reduce((acc: any, p) => {
-                            const val = p.category || "UMUM";
+                            if (!p.category) return acc;
+                            const val = p.category;
                             if (!acc[val]) acc[val] = [];
                             acc[val].push(p);
                             return acc;
@@ -4112,9 +4117,10 @@ export default function App() {
                               ? "provider"
                               : "brand";
                           groups = filtered
-                            .filter((p) => (p.category || "UMUM") === cat)
+                            .filter((p) => p.category === cat)
                             .reduce((acc: any, p) => {
-                              const val = p[field] || "UMUM";
+                              if (!p[field]) return acc;
+                              const val = p[field];
                               if (!acc[val]) acc[val] = [];
                               acc[val].push(p);
                               return acc;
@@ -4124,11 +4130,12 @@ export default function App() {
                           groups = filtered
                             .filter(
                               (p) =>
-                                (p.category || "UMUM") === cat &&
-                                (p.brand || "UMUM") === brand,
+                                p.category === cat &&
+                                p.brand === brand,
                             )
                             .reduce((acc: any, p) => {
-                              const val = p.subCategory || "UMUM";
+                              if (!p.subCategory) return acc;
+                              const val = p.subCategory;
                               if (!acc[val]) acc[val] = [];
                               acc[val].push(p);
                               return acc;
