@@ -37,7 +37,13 @@ export const ProductTable = ({
               <td colSpan={5} className="px-4 py-3 font-black uppercase tracking-widest text-[11px] text-blue-800 border-b-2 border-blue-200">{category}</td>
             </tr>
             {brandsInCategory.map(brand => {
-              const group = catProducts.filter(p => (p.brand || 'Lainnya') === brand);
+              const group = catProducts
+                .filter(p => (p.brand || 'Lainnya') === brand)
+                .sort((a, b) => {
+                  const priceA = a.discountPrice > 0 ? a.discountPrice : a.sellingPrice;
+                  const priceB = b.discountPrice > 0 ? b.discountPrice : b.sellingPrice;
+                  return priceA - priceB;
+                });
               return (
                 <React.Fragment key={`${category}-${brand}`}>
                   <tr className="bg-slate-50 border-b border-slate-100">

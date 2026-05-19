@@ -506,6 +506,7 @@ export default function App() {
   const [catalogSearch, setCatalogSearch] = useState("");
   const [adminSalesBranchFilter, setAdminSalesBranchFilter] = useState("");
   const [adminLogBranchFilter, setAdminLogBranchFilter] = useState("");
+
   const [adminSalesDateFilter, setAdminSalesDateFilter] = useState("today");
   const [adminLogDateFilter, setAdminLogDateFilter] = useState("today");
   const [reportStartDate, setReportStartDate] = useState("");
@@ -741,10 +742,10 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleGlobalKey);
   }, [activeMenu, shiftOpen]);
 
-  // Handle Search & Suggestions
+  // Enhanced search and sort by price logic
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
-    if (!val || val.length < 2) {
+    if (!val) {
       setSearchSuggestions([]);
       return;
     }
@@ -762,7 +763,6 @@ export default function App() {
         const category = (p.category || "").toLowerCase();
         const provider = (p.provider || "").toLowerCase();
 
-        // Multi-word match: every word in search must be in one of the fields
         return searchWords.every(word => 
           name.includes(word) || 
           barcode.includes(word) || 
@@ -773,27 +773,24 @@ export default function App() {
         );
       })
       .sort((a, b) => {
+        // Price comparison (Lowest to Highest)
+        const getPrice = (p: any) => p.discountPrice > 0 ? p.discountPrice : p.sellingPrice;
+        const priceA = getPrice(a);
+        const priceB = getPrice(b);
+        
+        if (priceA !== priceB) return priceA - priceB;
+        
+        // Secondary sort: Relevance (starts with)
         const nameA = (a.name || "").toLowerCase();
         const nameB = (b.name || "").toLowerCase();
-        
-        // Priority 1: Starts with search term
         const startsA = nameA.startsWith(searchLower);
         const startsB = nameB.startsWith(searchLower);
         if (startsA && !startsB) return -1;
         if (!startsA && startsB) return 1;
 
-        // Priority 2: Matches first word?
-        const wordStartsA = searchWords.length > 0 && nameA.startsWith(searchWords[0]);
-        const wordStartsB = searchWords.length > 0 && nameB.startsWith(searchWords[0]);
-        if (wordStartsA && !wordStartsB) return -1;
-        if (!wordStartsA && wordStartsB) return 1;
-
-        // Priority 3: Price (Lowest First)
-        const priceA = a.discountPrice > 0 ? a.discountPrice : a.sellingPrice;
-        const priceB = b.discountPrice > 0 ? b.discountPrice : b.sellingPrice;
-        return priceA - priceB;
+        return nameA.localeCompare(nameB);
       })
-      .slice(0, 10); // Increased from 5 to 10 for better visibility
+      .slice(0, 15);
     setSearchSuggestions(filtered);
   };
 
@@ -1238,12 +1235,16 @@ export default function App() {
       const data = {
         name: generatedName,
         category: prodCategory,
+        brand: prodBrand,
+        provider: prodProvider,
+        subCategory: prodSubCategory,
         barcode: finalBarcode,
+        masterSN: prodMasterSN,
         description: prodDesc,
-        buyingPrice: Number(prodCapital),
+        purchasePrice: Number(prodCapital),
         sellingPrice: Number(prodSell),
         discountPrice: Number(prodDiscount) || 0,
-        expiredAt: prodExpiredAt ? new Date(prodExpiredAt) : null,
+        expiredAt: prodExpiredAt || null,
         minStock: Number(prodMinStock) || 0,
         commissionAmount: Number(prodCommission) || 0,
         unit: "Pcs",
@@ -2112,20 +2113,6 @@ export default function App() {
           </div>
           
           <div className="mt-8 flex flex-col gap-4">
-             <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full bg-slate-900 text-white font-black py-4 px-4 rounded-2xl hover:bg-slate-800 transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 text-xs uppercase tracking-[0.2em] relative overflow-hidden group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <Mail className="w-4 h-4" /> Masuk Dengan Google
-              </button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
-                <div className="relative flex justify-center text-[8px] uppercase tracking-[0.3em] font-black"><span className="bg-white px-4 text-slate-300">Atau Gunakan Akun Toko</span></div>
-              </div>
-
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -2164,14 +2151,6 @@ export default function App() {
           </div>
 
           <div className="mt-8 pt-8 border-t border-slate-50 flex flex-col gap-3">
-             <button
-                type="button"
-                onClick={() => handleLoginSubmit({ username: "admin", password: "magicpulsa" })}
-                className="w-full bg-amber-500/10 text-amber-600 font-black py-3 px-4 rounded-2xl hover:bg-amber-500/20 transition flex items-center justify-center gap-3 text-[10px] uppercase tracking-widest border border-amber-200 border-dashed"
-              >
-                <Zap className="w-3 h-3 fill-amber-600" /> Bypass Debug
-              </button>
-
               <button
                 type="button"
                 onClick={() => {
@@ -3483,83 +3462,87 @@ export default function App() {
                           className="space-y-5"
                         >
                           <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                                Kategori Utama
-                              </label>
-                              <select
-                                value={prodCategory}
-                                onChange={(e) =>
-                                  setProdCategory(e.target.value)
-                                }
-                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 font-extrabold uppercase"
-                              >
-                                {CATEGORIES.map((c) => (
-                                  <option key={c} value={c}>
-                                    {c}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            {prodCategory === "Aksesoris" ? (
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                                    Merek (Brand)
-                                  </label>
-                                  <select
-                                    value={prodBrand}
-                                    onChange={(e) =>
-                                      setProdBrand(e.target.value)
-                                    }
-                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                            <div className="col-span-full">
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-3">
+                                Pilih Kategori Produk
+                              </p>
+                              <div className="flex flex-wrap gap-2 mb-4">
+                                {CATEGORIES.map(c => (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setProdCategory(c)}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${prodCategory === c ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-200'}`}
                                   >
-                                    {BRANDS.map((b) => (
-                                      <option key={b} value={b}>
-                                        {b}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    {c}
+                                  </button>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const custom = prompt("Masukkan Kategori Baru:");
+                                    if (custom) setProdCategory(custom);
+                                  }}
+                                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-dashed transition-all ${!CATEGORIES.includes(prodCategory) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
+                                >
+                                  <Plus className="w-3 h-3 inline mr-1" /> {!CATEGORIES.includes(prodCategory) ? prodCategory : 'Kustom Kategori'}
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 col-span-full">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 focus-within:text-blue-600 transition-colors">
+                                  Merek (Brand) / Provider Jaringan
+                                </label>
+                                <div className="relative group">
+                                  <input
+                                    list="brand-list"
+                                    value={prodBrand}
+                                    onChange={(e) => {
+                                      const val = e.target.value.toUpperCase();
+                                      setProdBrand(val);
+                                      setProdProvider(val);
+                                    }}
+                                    placeholder="Ketik atau pilih Merek"
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold uppercase transition-all shadow-sm"
+                                  />
+                                  <datalist id="brand-list">
+                                    {BRANDS.concat(PROVIDERS).map(b => <option key={b} value={b} />)}
+                                  </datalist>
                                 </div>
+                              </div>
+                              {prodCategory === "Aksesoris" || !PROVIDERS.includes(prodProvider) ? (
                                 <div>
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 opacity-70">
-                                    Tipe Aksesoris
+                                    Sub-Kategori / Model Barang
                                   </label>
-                                  <select
-                                    value={prodSubCategory}
-                                    onChange={(e) =>
-                                      setProdSubCategory(e.target.value)
-                                    }
-                                    className="w-full border border-blue-200 bg-blue-50 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 font-bold"
-                                  >
-                                    {ACC_SUB_CATEGORIES.map((s) => (
-                                      <option key={s} value={s}>
-                                        {s}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <div className="relative">
+                                    <input
+                                      list="sub-cat-list"
+                                      value={prodSubCategory}
+                                      onChange={(e) => setProdSubCategory(e.target.value.toUpperCase())}
+                                      placeholder="Ketik atau pilih Model"
+                                      className="w-full border border-blue-200 bg-blue-50/30 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold uppercase transition-all outline-none"
+                                    />
+                                    <datalist id="sub-cat-list">
+                                      {ACC_SUB_CATEGORIES.map(s => <option key={s} value={s} />)}
+                                    </datalist>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                                  Provider Jaringan
-                                </label>
-                                <select
-                                  value={prodProvider}
-                                  onChange={(e) =>
-                                    setProdProvider(e.target.value)
-                                  }
-                                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                                >
-                                  {PROVIDERS.map((b) => (
-                                    <option key={b} value={b}>
-                                      {b}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
+                              ) : (
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Provider Utama
+                                  </label>
+                                  <input
+                                    readOnly
+                                    value={prodProvider}
+                                    className="w-full border border-slate-100 bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold uppercase text-slate-400"
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3909,7 +3892,14 @@ export default function App() {
                                 }
                                 return true;
                               })
-                            : filtered;
+                              .sort((a,b) => {
+                                const getPrice = (p: any) => p.discountPrice > 0 ? p.discountPrice : p.sellingPrice;
+                                return getPrice(a) - getPrice(b);
+                              })
+                            : filtered.sort((a,b) => {
+                                const getPrice = (p: any) => p.discountPrice > 0 ? p.discountPrice : p.sellingPrice;
+                                return getPrice(a) - getPrice(b);
+                              });
 
                           return finalFiltered.map((p) => (
                             <tr key={p.id} className="hover:bg-slate-50">
