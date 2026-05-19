@@ -788,7 +788,7 @@ export default function App() {
   // Derive all categories present in products + defaults
   const ALL_CATEGORIES = Array.from(new Set([
     ...DEFAULT_CATEGORIES,
-    ...products.map(p => p.category || "UMUM")
+    ...products.filter(p => p.category).map(p => p.category!)
   ]));
 
   // Auto-focus search input in POS
