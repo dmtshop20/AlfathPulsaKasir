@@ -1102,6 +1102,13 @@ export default function App() {
         setShifts(shData);
         setUsers(uData);
         setAdjustments(aData);
+        
+        // Also sync commission summaries
+        if (isAdmin) {
+          syncCommissionsSummary(); // Get global summary for owner
+        } else {
+          syncCommissionsSummary(profile?.branchId || undefined); // Get branch summary for cashier
+        }
       } catch (err) {
         console.error("General data load error:", err);
       }
@@ -1131,9 +1138,25 @@ export default function App() {
   const syncCommissionsSummary = async (targetBranchId?: string) => {
     try {
       const summary = await api.getCommissionSummary(targetBranchId);
-      setCommissionsSummary(summary);
+      
+      // Map server response { total, byBranch } to what the app expects
+      const formattedSummary = {
+        ...summary,
+        totalEarned: summary.total // Fix mismatch in property name
+      };
+      
+      setCommissionsSummary(formattedSummary);
+
+      // If we got byBranch data, update the overall branchSummaries state
+      if (summary.byBranch) {
+        const newBranchSummaries: Record<string, any> = {};
+        Object.entries(summary.byBranch).forEach(([bid, amount]) => {
+          newBranchSummaries[bid] = { totalEarned: amount };
+        });
+        setBranchSummaries(newBranchSummaries);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Sync Commissions Summary Error:", err);
     }
   };
 
@@ -6243,7 +6266,10 @@ export default function App() {
                       <div className="flex items-center gap-1.5 bg-blue-600 text-white px-2 py-1.5 rounded-lg shadow-lg shadow-blue-200 cursor-pointer hover:bg-blue-700 transition-colors" onClick={() => setActiveMenu("incentive")}>
                         <Sparkles className="w-3 h-3" />
                         <p className="text-[10px] font-black uppercase tracking-tight leading-none text-right">
-                          Bonus Cabang: Rp {(commissionsSummary?.totalEarned || 0).toLocaleString("id-ID")}
+                          Bonus Cabang: Rp {(profile?.role === "ADMIN" 
+                            ? (branchSummaries[profile.branchId || ""]?.totalEarned || 0) 
+                            : (commissionsSummary?.totalEarned || 0)
+                          ).toLocaleString("id-ID")}
                         </p>
                       </div>
                       <p className="text-[8px] font-black text-blue-600 uppercase mt-1 tracking-widest text-right">
