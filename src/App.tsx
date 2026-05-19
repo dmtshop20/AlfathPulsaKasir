@@ -676,12 +676,11 @@ export default function App() {
   const [prodCommission, setProdCommission] = useState("0");
   const [prodMasterSN, setProdMasterSN] = useState("");
 
-  const CATEGORIES = [
+  const DEFAULT_CATEGORIES = [
     "Aksesoris",
     "Voucher",
     "Kartu Perdana Kuota",
     "Perdana Biasa",
-    "Lainnya",
   ];
   const BRANDS = [
     "Robot",
@@ -695,7 +694,6 @@ export default function App() {
     "Lenyes",
     "Jete",
     "Baseus",
-    "Lainnya",
   ];
   const PROVIDERS = [
     "Telkomsel",
@@ -704,7 +702,6 @@ export default function App() {
     "Smartfren",
     "Tri",
     "Axis",
-    "Lainnya",
   ];
   const ACC_SUB_CATEGORIES = [
     "Kabel Data",
@@ -718,8 +715,13 @@ export default function App() {
     "Speaker",
     "Casing",
     "Baterai",
-    "Lainnya",
   ];
+
+  // Derive all categories present in products + defaults
+  const ALL_CATEGORIES = Array.from(new Set([
+    ...DEFAULT_CATEGORIES,
+    ...products.map(p => p.category || "UMUM")
+  ]));
 
   // Auto-focus search input in POS
   useEffect(() => {
@@ -3467,7 +3469,7 @@ export default function App() {
                                 Pilih Kategori Produk
                               </p>
                               <div className="flex flex-wrap gap-2 mb-4">
-                                {CATEGORIES.map(c => (
+                                {DEFAULT_CATEGORIES.map(c => (
                                   <button
                                     key={c}
                                     type="button"
@@ -3483,9 +3485,9 @@ export default function App() {
                                     const custom = prompt("Masukkan Kategori Baru:");
                                     if (custom) setProdCategory(custom);
                                   }}
-                                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-dashed transition-all ${!CATEGORIES.includes(prodCategory) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
+                                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-dashed transition-all ${!DEFAULT_CATEGORIES.includes(prodCategory) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
                                 >
-                                  <Plus className="w-3 h-3 inline mr-1" /> {!CATEGORIES.includes(prodCategory) ? prodCategory : 'Kustom Kategori'}
+                                  <Plus className="w-3 h-3 inline mr-1" /> {!DEFAULT_CATEGORIES.includes(prodCategory) && prodCategory ? prodCategory : 'Kustom Kategori'}
                                 </button>
                               </div>
                             </div>
@@ -3875,18 +3877,18 @@ export default function App() {
                                       ? "provider"
                                       : "brand";
                                   return (
-                                    (p.category || "LAINNYA") ===
+                                    (p.category || "UMUM") ===
                                       drillPath[0] &&
-                                    (p[field] || "LAINNYA") === drillPath[1]
+                                    (p[field] || "UMUM") === drillPath[1]
                                   );
                                 }
                                 if (drillPath.length === 3) {
                                   return (
-                                    (p.category || "LAINNYA") ===
+                                    (p.category || "UMUM") ===
                                       drillPath[0] &&
-                                    (p.brand || "TANPA MERK") ===
+                                    (p.brand || "UMUM") ===
                                       drillPath[1] &&
-                                    (p.subCategory || "LAINNYA") ===
+                                    (p.subCategory || "UMUM") ===
                                       drillPath[2]
                                   );
                                 }
@@ -3977,7 +3979,7 @@ export default function App() {
                         let groups: any = {};
                         if (drillPath.length === 0) {
                           groups = filtered.reduce((acc: any, p) => {
-                            const val = p.category || "LAINNYA";
+                            const val = p.category || "UMUM";
                             if (!acc[val]) acc[val] = [];
                             acc[val].push(p);
                             return acc;
@@ -3989,9 +3991,9 @@ export default function App() {
                               ? "provider"
                               : "brand";
                           groups = filtered
-                            .filter((p) => (p.category || "LAINNYA") === cat)
+                            .filter((p) => (p.category || "UMUM") === cat)
                             .reduce((acc: any, p) => {
-                              const val = p[field] || "TANPA MERK";
+                              const val = p[field] || "UMUM";
                               if (!acc[val]) acc[val] = [];
                               acc[val].push(p);
                               return acc;
@@ -4001,11 +4003,11 @@ export default function App() {
                           groups = filtered
                             .filter(
                               (p) =>
-                                (p.category || "LAINNYA") === cat &&
-                                (p.brand || "TANPA MERK") === brand,
+                                (p.category || "UMUM") === cat &&
+                                (p.brand || "UMUM") === brand,
                             )
                             .reduce((acc: any, p) => {
-                              const val = p.subCategory || "LAINNYA";
+                              const val = p.subCategory || "UMUM";
                               if (!acc[val]) acc[val] = [];
                               acc[val].push(p);
                               return acc;
@@ -4356,7 +4358,7 @@ export default function App() {
                                 if (
                                   shoppingListCategory === "Voucher/Perdana" &&
                                   (p.category === "Aksesoris" ||
-                                    p.category === "LAINNYA")
+                                    p.category === "UMUM")
                                 )
                                   return;
                                 branches.forEach((b) => {
@@ -4995,19 +4997,19 @@ export default function App() {
                                           ? "provider"
                                           : "brand";
                                       return (
-                                        (p.category || "LAINNYA") ===
+                                        (p.category || "UMUM") ===
                                           drillPath[0] &&
-                                        (p[field] || "TANPA MERK") ===
+                                        (p[field] || "UMUM") ===
                                           drillPath[1]
                                       );
                                     }
                                     if (drillPath.length === 3) {
                                       return (
-                                        (p.category || "LAINNYA") ===
+                                        (p.category || "UMUM") ===
                                           drillPath[0] &&
-                                        (p.brand || "TANPA MERK") ===
+                                        (p.brand || "UMUM") ===
                                           drillPath[1] &&
-                                        (p.subCategory || "LAINNYA") ===
+                                        (p.subCategory || "UMUM") ===
                                           drillPath[2]
                                       );
                                     }
@@ -5077,7 +5079,7 @@ export default function App() {
                             let groups: any = {};
                             if (drillPath.length === 0) {
                               groups = filtered.reduce((acc: any, p) => {
-                                const val = p.category || "LAINNYA";
+                                const val = p.category || "UMUM";
                                 if (!acc[val]) acc[val] = [];
                                 acc[val].push(p);
                                 return acc;
@@ -5091,10 +5093,10 @@ export default function App() {
                                   : "brand";
                               groups = filtered
                                 .filter(
-                                  (p) => (p.category || "LAINNYA") === cat,
+                                  (p) => (p.category || "UMUM") === cat,
                                 )
                                 .reduce((acc: any, p) => {
-                                  const val = p[field] || "TANPA MERK";
+                                  const val = p[field] || "UMUM";
                                   if (!acc[val]) acc[val] = [];
                                   acc[val].push(p);
                                   return acc;
@@ -5104,11 +5106,11 @@ export default function App() {
                               groups = filtered
                                 .filter(
                                   (p) =>
-                                    (p.category || "LAINNYA") === cat &&
-                                    (p.brand || "TANPA MERK") === brand,
+                                    (p.category || "UMUM") === cat &&
+                                    (p.brand || "UMUM") === brand,
                                 )
                                 .reduce((acc: any, p) => {
-                                  const val = p.subCategory || "LAINNYA";
+                                  const val = p.subCategory || "UMUM";
                                   if (!acc[val]) acc[val] = [];
                                   acc[val].push(p);
                                   return acc;
@@ -5799,9 +5801,9 @@ export default function App() {
                               const final = !transferSearch
                                 ? filtered.filter((p) => {
                                     if (transferDrillPath.length === 1)
-                                      return (p.category || "LAINNYA") === transferDrillPath[0];
+                                      return (p.category || "UMUM") === transferDrillPath[0];
                                     if (transferDrillPath.length === 2)
-                                      return (p.category || "LAINNYA") === transferDrillPath[0] && (p.brand || "TANPA MERK") === transferDrillPath[1];
+                                      return (p.category || "UMUM") === transferDrillPath[0] && (p.brand || "UMUM") === transferDrillPath[1];
                                     return true;
                                   })
                                 : filtered;
@@ -5818,7 +5820,7 @@ export default function App() {
                                 >
                                   <div>
                                     <p className={`text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] mb-1 ${selectedTransferProduct?.id === p.id ? "text-emerald-100" : "text-slate-400"}`}>
-                                      {p.brand || "TANPA MERK"}
+                                      {p.brand || "UMUM"}
                                     </p>
                                     <h4 className="text-[10px] md:text-xs font-black uppercase leading-tight line-clamp-2">
                                       {p.name}
@@ -5840,16 +5842,16 @@ export default function App() {
                             let groups: any = {};
                             if (transferDrillPath.length === 0) {
                               groups = filtered.reduce((acc: any, p) => {
-                                const val = p.category || "LAINNYA";
+                                const val = p.category || "UMUM";
                                 if (!acc[val]) acc[val] = [];
                                 acc[val].push(p);
                                 return acc;
                               }, {});
                             } else if (transferDrillPath.length === 1) {
                               groups = filtered
-                                .filter((p) => (p.category || "LAINNYA") === transferDrillPath[0])
+                                .filter((p) => (p.category || "UMUM") === transferDrillPath[0])
                                 .reduce((acc: any, p) => {
-                                  const val = p.brand || "TANPA MERK";
+                                  const val = p.brand || "UMUM";
                                   if (!acc[val]) acc[val] = [];
                                   acc[val].push(p);
                                   return acc;
@@ -7005,14 +7007,14 @@ export default function App() {
                                         ? filtered.filter((p) => {
                                             if (transferDrillPath.length === 1)
                                               return (
-                                                (p.category || "LAINNYA") ===
+                                                (p.category || "UMUM") ===
                                                 transferDrillPath[0]
                                               );
                                             if (transferDrillPath.length === 2)
                                               return (
-                                                (p.category || "LAINNYA") ===
+                                                (p.category || "UMUM") ===
                                                   transferDrillPath[0] &&
-                                                (p.brand || "TANPA MERK") ===
+                                                (p.brand || "UMUM") ===
                                                   transferDrillPath[1]
                                               );
                                             return true;
@@ -7046,7 +7048,7 @@ export default function App() {
                                     if (transferDrillPath.length === 0) {
                                       groups = filtered.reduce(
                                         (acc: any, p) => {
-                                          const val = p.category || "LAINNYA";
+                                          const val = p.category || "UMUM";
                                           if (!acc[val]) acc[val] = [];
                                           acc[val].push(p);
                                           return acc;
@@ -7057,11 +7059,11 @@ export default function App() {
                                       groups = filtered
                                         .filter(
                                           (p) =>
-                                            (p.category || "LAINNYA") ===
+                                            (p.category || "UMUM") ===
                                             transferDrillPath[0],
                                         )
                                         .reduce((acc: any, p) => {
-                                          const val = p.brand || "TANPA MERK";
+                                          const val = p.brand || "UMUM";
                                           if (!acc[val]) acc[val] = [];
                                           acc[val].push(p);
                                           return acc;

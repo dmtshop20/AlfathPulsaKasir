@@ -20,16 +20,11 @@ export const ProductTable = ({
           const searchMatch = (p.name || "").toLowerCase().includes((searchTerm || "").toLowerCase()) || (p.barcode || "").includes(searchTerm);
           if (!searchMatch) return false;
 
-          if (category === "Lainnya") {
-            // Products with no category or category not in the standard list
-            const standardCategories = CATEGORIES.filter(c => c !== "Lainnya");
-            return !p.category || !standardCategories.includes(p.category);
-          }
-          return p.category === category;
+          return (p.category || "UMUM") === category;
         });
         if (catProducts.length === 0) return null;
         
-        const brandsInCategory = Array.from(new Set(catProducts.map(p => p.brand || 'Lainnya')));
+        const brandsInCategory = Array.from(new Set(catProducts.map(p => p.brand || 'UMUM')));
 
         return (
           <React.Fragment key={category}>
@@ -38,7 +33,7 @@ export const ProductTable = ({
             </tr>
             {brandsInCategory.map(brand => {
               const group = catProducts
-                .filter(p => (p.brand || 'Lainnya') === brand)
+                .filter(p => (p.brand || 'UMUM') === brand)
                 .sort((a, b) => {
                   const priceA = a.discountPrice > 0 ? a.discountPrice : a.sellingPrice;
                   const priceB = b.discountPrice > 0 ? b.discountPrice : b.sellingPrice;
