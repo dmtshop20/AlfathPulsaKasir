@@ -218,6 +218,7 @@ app.get("/api/auth/me", authenticateToken, async (req, res) => {
 app.get("/api/products", authenticateToken, async (req, res) => {
   try {
     const products = await prisma.product.findMany({
+        where: { status: "ACTIVE" },
       include: {
         stocks: true
       }
@@ -262,16 +263,11 @@ app.delete("/api/products/:id", authenticateToken, async (req, res) => {
   const productId = req.params.id;
   try {
     await prisma.$transaction(async (tx) => {
-      // Cleanup associated data to satisfy FK constraints for testing phase
-      await tx.productStock.deleteMany({ where: { productId } });
-      await tx.voucherSN.deleteMany({ where: { productId } });
-      await tx.adjustment.deleteMany({ where: { productId } });
-      
-      // We don't delete SaleItems as that would corrupt financial history, 
-      // but for "Uji Coba" if the user really wants it...
-      // The user specifically asked to enable deletion for testing.
-      
-      await tx.product.delete({ where: { id: productId } });
+        // Hard delete
+        await tx.productStock.deleteMany({ where: { productId } });
+        await tx.voucherSN.deleteMany({ where: { productId } });
+        await tx.adjustment.deleteMany({ where: { productId } });
+        await tx.product.delete({ where: { id: productId } });
     });
     
     io.emit("productDeleted", { id: productId });
