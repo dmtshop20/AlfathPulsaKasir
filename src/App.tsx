@@ -32,6 +32,7 @@ import {
   RotateCcw,
   ShoppingCart,
   X,
+  Eye,
   LayoutList,
   ClipboardList,
   Users,
@@ -675,6 +676,7 @@ export default function App() {
   const [prodMinStock, setProdMinStock] = useState("0");
   const [prodCommission, setProdCommission] = useState("0");
   const [prodMasterSN, setProdMasterSN] = useState("");
+  const [prodVisibleBranchIds, setProdVisibleBranchIds] = useState<string>("*");
 
   const DEFAULT_CATEGORIES = [
     "Aksesoris",
@@ -717,6 +719,28 @@ export default function App() {
     "Baterai",
   ];
 
+  // Dynamic Suggestion Lists for Product Form
+  const dynamicCategories = useMemo(() => {
+    const existing = products.map((p) => p.category).filter(Boolean);
+    return Array.from(new Set([...DEFAULT_CATEGORIES, ...existing]));
+  }, [products]);
+
+  const dynamicBrands = useMemo(() => {
+    const existing = products.map((p) => p.brand).filter(Boolean);
+    return Array.from(new Set([...BRANDS, ...existing]));
+  }, [products]);
+
+  const dynamicSubCategories = useMemo(() => {
+    const existing = products.map((p) => p.subCategory).filter(Boolean);
+    return Array.from(new Set([...ACC_SUB_CATEGORIES, ...existing]));
+  }, [products]);
+
+  const dynamicProviders = useMemo(() => {
+    const existing = products.map((p) => p.provider).filter(Boolean);
+    return Array.from(new Set([...PROVIDERS, ...existing]));
+  }, [products]);
+
+
   // Derive all categories present in products + defaults
   const ALL_CATEGORIES = Array.from(new Set([
     ...DEFAULT_CATEGORIES,
@@ -758,6 +782,12 @@ export default function App() {
     const filtered = products
       .filter((p) => {
         if (!p) return false;
+
+        // Visibility check
+        const visibleIds = p.visibleBranchIds || "*";
+        const isVisible = visibleIds === "*" || (profile?.branchId && visibleIds.split(",").includes(profile.branchId));
+        if (!isVisible && profile?.role !== "ADMIN") return false; 
+
         const name = (p.name || "").toLowerCase();
         const barcode = (p.barcode || "").toLowerCase();
         const type = (p.type || "").toLowerCase();
@@ -1242,6 +1272,8 @@ export default function App() {
         subCategory: prodSubCategory,
         barcode: finalBarcode,
         masterSN: prodMasterSN,
+        visibleBranchIds: prodVisibleBranchIds,
+        status: "ACTIVE",
         description: prodDesc,
         purchasePrice: Number(prodCapital),
         sellingPrice: Number(prodSell),
@@ -1315,6 +1347,7 @@ export default function App() {
     setProdExpiredAt(p.expiredAt || "");
     setProdMinStock(p.minStock?.toString() || "0");
     setProdCommission(p.commissionAmount?.toString() || "0");
+    setProdVisibleBranchIds(p.visibleBranchIds || "*");
     setShowProductForm(true);
   };
 
@@ -1582,12 +1615,20 @@ export default function App() {
 
   const sortedProductsBySales = React.useMemo(() => {
     const itemStats: { [id: string]: { qty: number; product: any } } = {};
+    const branchId = profile?.branchId;
+
+    // Filter products visible in this branch
+    const branchProducts = products.filter(p => {
+      const visibleIds = p.visibleBranchIds || "*";
+      const isVisible = visibleIds === "*" || (branchId && visibleIds.split(",").includes(branchId));
+      return isVisible;
+    });
 
     sales.forEach((s) => {
-      if (s.branchId !== profile?.branchId || s.status === "refunded") return;
+      if (s.branchId !== branchId || s.status === "refunded") return;
       (s.items || []).forEach((item: any) => {
         if (!itemStats[item.id]) {
-          const product = products.find((p) => p.id === item.id);
+          const product = branchProducts.find((p) => p.id === item.id);
           if (!product) return;
           itemStats[item.id] = { qty: 0, product };
         }
@@ -1602,8 +1643,11 @@ export default function App() {
       .map((entry) => entry.product);
 
     const existingIds = new Set(sorted.map((p) => p.id));
-    const unsorted = products.filter(p => !existingIds.has(p.id))
-      .sort((a, b) => naturalSort(a.name, b.name));
+    const unsorted = branchProducts.filter(p => !existingIds.has(p.id))
+      .sort((a, b) => {
+        const getPrice = (px: any) => px.discountPrice > 0 ? px.discountPrice : px.sellingPrice;
+        return getPrice(a) - getPrice(b);
+      });
 
     return [...sorted, ...unsorted];
   }, [sales, products, profile?.branchId]);
@@ -3463,87 +3507,128 @@ export default function App() {
                           onSubmit={handleSaveProduct}
                           className="space-y-5"
                         >
-                          <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="col-span-full">
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-3">
-                                Pilih Kategori Produk
-                              </p>
-                              <div className="flex flex-wrap gap-2 mb-4">
-                                {DEFAULT_CATEGORIES.map(c => (
-                                  <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setProdCategory(c)}
-                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${prodCategory === c ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-200'}`}
-                                  >
-                                    {c}
-                                  </button>
-                                ))}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const custom = prompt("Masukkan Kategori Baru:");
-                                    if (custom) setProdCategory(custom);
-                                  }}
-                                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-dashed transition-all ${!DEFAULT_CATEGORIES.includes(prodCategory) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500'}`}
-                                >
-                                  <Plus className="w-3 h-3 inline mr-1" /> {!DEFAULT_CATEGORIES.includes(prodCategory) && prodCategory ? prodCategory : 'Kustom Kategori'}
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 col-span-full">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Column 1: Identity */}
+                            <div className="space-y-5">
                               <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 focus-within:text-blue-600 transition-colors">
-                                  Merek (Brand) / Provider Jaringan
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1.5 focus-within:text-blue-600 transition-colors">
+                                  Kategori Produk
                                 </label>
                                 <div className="relative group">
                                   <input
-                                    list="brand-list"
-                                    value={prodBrand}
-                                    onChange={(e) => {
-                                      const val = e.target.value.toUpperCase();
-                                      setProdBrand(val);
-                                      setProdProvider(val);
-                                    }}
-                                    placeholder="Ketik atau pilih Merek"
-                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold uppercase transition-all shadow-sm"
+                                    list="category-suggestions"
+                                    value={prodCategory}
+                                    onChange={(e) => setProdCategory(e.target.value)}
+                                    placeholder="Ketik atau pilih Kategori"
+                                    className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold transition-all shadow-sm"
                                   />
-                                  <datalist id="brand-list">
-                                    {BRANDS.concat(PROVIDERS).map(b => <option key={b} value={b} />)}
+                                  <datalist id="category-suggestions">
+                                    {dynamicCategories.map(c => <option key={c} value={c} />)}
                                   </datalist>
                                 </div>
                               </div>
-                              {prodCategory === "Aksesoris" || !PROVIDERS.includes(prodProvider) ? (
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 opacity-70">
-                                    Sub-Kategori / Model Barang
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 focus-within:text-blue-600 transition-colors">
+                                    Merek (Brand)
+                                  </label>
+                                  <div className="relative group">
+                                    <input
+                                      list="brand-list"
+                                      value={prodBrand}
+                                      onChange={(e) => {
+                                        const val = e.target.value.toUpperCase();
+                                        setProdBrand(val);
+                                        if (val && !prodProvider) setProdProvider(val);
+                                      }}
+                                      placeholder="Ketik Merek"
+                                      className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none font-bold uppercase transition-all shadow-sm"
+                                    />
+                                    <datalist id="brand-list">
+                                      {dynamicBrands.map(b => <option key={b} value={b} />)}
+                                    </datalist>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Model / Sub-Kategori
                                   </label>
                                   <div className="relative">
                                     <input
                                       list="sub-cat-list"
                                       value={prodSubCategory}
-                                      onChange={(e) => setProdSubCategory(e.target.value.toUpperCase())}
-                                      placeholder="Ketik atau pilih Model"
-                                      className="w-full border border-blue-200 bg-blue-50/30 rounded-xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold uppercase transition-all outline-none"
+                                      onChange={(e) => setProdSubCategory(e.target.value)}
+                                      placeholder="Ketik Model"
+                                      className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all outline-none"
                                     />
                                     <datalist id="sub-cat-list">
-                                      {ACC_SUB_CATEGORIES.map(s => <option key={s} value={s} />)}
+                                      {dynamicSubCategories.map(s => <option key={s} value={s} />)}
                                     </datalist>
                                   </div>
                                 </div>
-                              ) : (
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                                    Provider Utama
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                  Provider Jaringan (Opsional)
+                                </label>
+                                <input
+                                  list="provider-list"
+                                  value={prodProvider}
+                                  onChange={(e) => setProdProvider(e.target.value.toUpperCase())}
+                                  placeholder="Ketik Provider"
+                                  className="w-full border border-slate-300 rounded-2xl px-4 py-3 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold uppercase transition-all outline-none"
+                                />
+                                <datalist id="provider-list">
+                                  {dynamicProviders.map(p => <option key={p} value={p} />)}
+                                </datalist>
+                              </div>
+                            </div>
+
+                            {/* Column 2: Visibility & Settings */}
+                            <div className="space-y-5 bg-slate-50/50 p-4 rounded-3xl border border-slate-100">
+                              <div>
+                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                  <Eye className="w-4 h-4 text-blue-600" /> Visibilitas Cabang
+                                </p>
+                                <div className="space-y-2">
+                                  <label className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-200 cursor-pointer hover:border-blue-300 transition-all group">
+                                    <input
+                                      type="checkbox"
+                                      checked={prodVisibleBranchIds === "*"}
+                                      onChange={(e) => setProdVisibleBranchIds(e.target.checked ? "*" : "")}
+                                      className="w-5 h-5 rounded-lg text-blue-600 border-slate-300 focus:ring-blue-500"
+                                    />
+                                    <span className="text-[11px] font-black uppercase text-slate-600 group-hover:text-blue-700">Semua Cabang Toko</span>
                                   </label>
-                                  <input
-                                    readOnly
-                                    value={prodProvider}
-                                    className="w-full border border-slate-100 bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold uppercase text-slate-400"
-                                  />
+                                  
+                                  {prodVisibleBranchIds !== "*" && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                      {branches.map(b => {
+                                        const ids = prodVisibleBranchIds ? prodVisibleBranchIds.split(",") : [];
+                                        const isChecked = ids.includes(b.id);
+                                        return (
+                                          <label key={b.id} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${isChecked ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200 hover:border-slate-300"}`}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={(e) => {
+                                                const newIds = e.target.checked
+                                                  ? [...ids, b.id]
+                                                  : ids.filter(id => id !== b.id);
+                                                setProdVisibleBranchIds(newIds.join(","));
+                                              }}
+                                              className="w-4 h-4 rounded text-blue-600 border-slate-300"
+                                            />
+                                            <span className={`text-[10px] font-bold uppercase truncate ${isChecked ? "text-blue-700" : "text-slate-500"}`}>{b.name}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
                           </div>
 
@@ -3846,6 +3931,9 @@ export default function App() {
                           Harga Jual
                         </th>
                         <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                          Visibilitas
+                        </th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
                           Aksi
                         </th>
                       </tr>
@@ -3950,6 +4038,17 @@ export default function App() {
                                     Promo: Rp{" "}
                                     {p.discountPrice.toLocaleString("id-ID")}
                                   </p>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {p.visibleBranchIds === "*" ? (
+                                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase px-2 py-1 rounded-full border border-emerald-100">
+                                    <CheckCircle2 className="w-3 h-3" /> Semua
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 text-[9px] font-black uppercase px-2 py-1 rounded-full border border-amber-100" title={p.visibleBranchIds}>
+                                    <MapPin className="w-3 h-3" /> {p.visibleBranchIds?.split(",").length} Cabang
+                                  </span>
                                 )}
                               </td>
                               <td className="px-4 py-3 text-center">
@@ -4970,15 +5069,34 @@ export default function App() {
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-xs text-left">
                           {(() => {
-                            const filtered = products.filter(
-                              (p) =>
-                                p &&
-                                (!searchTerm ||
+                            const filtered = products
+                              .filter((p) => {
+                                if (!p) return false;
+                                // Visibility check
+                                const visibleIds = p.visibleBranchIds || "*";
+                                const isVisible =
+                                  visibleIds === "*" ||
+                                  (auditSelectedBranch &&
+                                    visibleIds
+                                      .split(",")
+                                      .includes(auditSelectedBranch));
+                                if (!isVisible) return false;
+
+                                return (
+                                  !searchTerm ||
                                   (p.name || "")
                                     .toLowerCase()
                                     .includes(searchTerm.toLowerCase()) ||
-                                  (p.barcode || "").includes(searchTerm)),
-                            );
+                                  (p.barcode || "").includes(searchTerm)
+                                );
+                              })
+                              .sort((a, b) => {
+                                const getPrice = (px: any) =>
+                                  px.discountPrice > 0
+                                    ? px.discountPrice
+                                    : px.sellingPrice;
+                                return getPrice(a) - getPrice(b);
+                              });
 
                             const isAksesoris = drillPath[0] === "Aksesoris";
                             const isEndLevel =
@@ -5789,13 +5907,25 @@ export default function App() {
                       <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar bg-slate-50/50 min-h-0">
                         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
                           {(() => {
-                            const filtered = products.filter(
-                              (p) =>
-                                !transferSearch ||
-                                (p?.name || "").toLowerCase().includes(transferSearch.toLowerCase()) ||
-                                (p?.barcode || "").includes(transferSearch) ||
-                                (p?.brand || "").toLowerCase().includes(transferSearch.toLowerCase()),
-                            );
+                            const filtered = products
+                              .filter(
+                                (p) =>
+                                  !transferSearch ||
+                                  (p?.name || "")
+                                    .toLowerCase()
+                                    .includes(transferSearch.toLowerCase()) ||
+                                  (p?.barcode || "").includes(transferSearch) ||
+                                  (p?.brand || "")
+                                    .toLowerCase()
+                                    .includes(transferSearch.toLowerCase()),
+                              )
+                              .sort((a, b) => {
+                                const getPrice = (px: any) =>
+                                  px.discountPrice > 0
+                                    ? px.discountPrice
+                                    : px.sellingPrice;
+                                return getPrice(a) - getPrice(b);
+                              });
 
                             if (transferSearch || transferDrillPath.length >= 2) {
                               const final = !transferSearch
