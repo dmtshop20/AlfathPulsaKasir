@@ -263,7 +263,10 @@ app.delete("/api/products/:id", authenticateToken, async (req, res) => {
   const productId = req.params.id;
   try {
     await prisma.$transaction(async (tx) => {
-        // Hard delete
+        // Hard delete all related records
+        await tx.stockSnapshot.deleteMany({ where: { productId } });
+        await tx.commission.deleteMany({ where: { productId } });
+        await tx.saleItem.deleteMany({ where: { productId } });
         await tx.productStock.deleteMany({ where: { productId } });
         await tx.voucherSN.deleteMany({ where: { productId } });
         await tx.adjustment.deleteMany({ where: { productId } });
