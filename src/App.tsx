@@ -704,6 +704,25 @@ export default function App() {
     useState<any>(null);
   const [shoppingListBranch, setShoppingListBranch] = useState("");
   const [shoppingListCategory, setShoppingListCategory] = useState("");
+  const [hiddenShoppingBranchIds, setHiddenShoppingBranchIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem("hiddenShoppingBranchIds");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleBranchShoppingHidden = (branchId: string) => {
+    setHiddenShoppingBranchIds((prev) => {
+      const next = prev.includes(branchId)
+        ? prev.filter((id) => id !== branchId)
+        : [...prev, branchId];
+      localStorage.setItem("hiddenShoppingBranchIds", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [planDraftItems, setPlanDraftItems] = useState<
     { productId: string; branchQtys: { [bid: string]: string } }[]
@@ -898,7 +917,7 @@ export default function App() {
 
         // Visibility check
         const visibleIds = p.visibleBranchIds || "*";
-        const isVisible = visibleIds === "*" || (profile?.branchId && visibleIds.split(",").includes(profile.branchId));
+        const isVisible = visibleIds === "*" || (profile?.branchId && visibleIds.split(",").map((id: string) => id.trim()).includes(profile.branchId));
         if (!isVisible && profile?.role !== "ADMIN") return false; 
 
         const name = (p.name || "").toLowerCase();
@@ -1107,14 +1126,21 @@ export default function App() {
     let alertCount = 0;
     products.forEach((p) => {
       if (p.minStock > 0) {
+        const visibleIds = p.visibleBranchIds || "*";
         branches.forEach((b) => {
+          // Check if branch is disabled/hidden from shopping list
+          if (hiddenShoppingBranchIds.includes(b.id)) return;
+
+          const isProductVisibleInBranch = visibleIds === "*" || visibleIds.split(",").map((id: string) => id.trim()).includes(b.id);
+          if (!isProductVisibleInBranch) return;
+
           const s = stocks.find(st => st.branchId === b.id && st.productId === p.id);
           if ((s ? s.qty : 0) <= p.minStock) alertCount++;
         });
       }
     });
     return alertCount;
-  }, [products, branches, stocks, profile]);
+  }, [products, branches, stocks, profile, hiddenShoppingBranchIds]);
 
   useEffect(() => {
     if (!profile || profile.role === "PENDING") return;
@@ -1761,7 +1787,7 @@ export default function App() {
     // Filter products visible in this branch
     const branchProducts = products.filter(p => {
       const visibleIds = p.visibleBranchIds || "*";
-      const isVisible = visibleIds === "*" || (branchId && visibleIds.split(",").includes(branchId));
+      const isVisible = visibleIds === "*" || (branchId && visibleIds.split(",").map((id: string) => id.trim()).includes(branchId));
       return isVisible;
     });
 
@@ -1810,7 +1836,7 @@ export default function App() {
     // 1. Filter products visible in this branch
     let list = products.filter(p => {
       const visibleIds = p.visibleBranchIds || "*";
-      return visibleIds === "*" || visibleIds.split(",").includes(branchId);
+      return visibleIds === "*" || visibleIds.split(",").map((id: string) => id.trim()).includes(branchId);
     });
 
     // 2. Filter by category
@@ -3624,7 +3650,22 @@ export default function App() {
                                     : "INPUT OFF"}
                                 </button>
                                 <button
+                                  onClick={() => toggleBranchShoppingHidden(b.id)}
+                                  className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-tight transition-all ${!hiddenShoppingBranchIds.includes(b.id) ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200"}`}
+                                  title={!hiddenShoppingBranchIds.includes(b.id) ? "Klik untuk sembunyikan cabang ini dari Daftar Belanja" : "Klik untuk tampilkan kembali cabang ini di Daftar Belanja"}
+                                >
+                                  {!hiddenShoppingBranchIds.includes(b.id)
+                                    ? "MUNCUL DI BELANJA"
+                                    : "DISEMBUNYIKAN"}
+                                </button>
+                                <button
                                   onClick={async () => {
+                                    if (b.id === "default-branch-id") {
+                                      alert(
+                                        `PERINGATAN: "${b.name}" adalah Cabang Sistem Utama bawaan (seed) yang tertaut dengan akun 'admin' dan 'cashier' default.\n\nSangat disarankan untuk mengubah NAMA cabang ini di database (atau rename) daripada menghapusnya.\n\nSetiap kali web restart, Cabang Sistem Utama ini akan otomatis dibuat kembali jika tidak ada.`
+                                      );
+                                      return;
+                                    }
                                     if (
                                       confirm(
                                         `Hapus Cabang "${b.name}"?\nSemua data stok dan voucher di cabang ini akan dihapus. Data penjualan tetap tersimpan.`,
@@ -4444,16 +4485,25 @@ export default function App() {
                                   .slice()
                                   .sort((a, b) => naturalSort(a.name, b.name))
                                   .map((b) => {
-                                    const qty = getBranchStock(b.id, p.id);
+                                    const visibleIds = p.visibleBranchIds || "*";
+                                    const isProductVisibleInBranch = visibleIds === "*" || visibleIds.split(",").map((id: string) => id.trim()).includes(b.id);
+                                    const qty = isProductVisibleInBranch ? getBranchStock(b.id, p.id) : 0;
                                     rowTotal += qty;
-                                    const isLow =
-                                      p.minStock > 0 && qty <= p.minStock;
+                                    const isLow = isProductVisibleInBranch && p.minStock > 0 && qty <= p.minStock;
                                     return (
                                       <td
                                         key={b.id}
-                                        className={`px-2 py-3 text-center text-sm font-black font-mono border-r border-slate-200 ${isLow ? "text-red-600 bg-red-50/50" : "text-slate-600"}`}
+                                        className={`px-2 py-3 text-center text-sm font-black font-mono border-r border-slate-200 ${
+                                          !isProductVisibleInBranch 
+                                            ? "text-slate-300 bg-slate-50/30 font-normal italic" 
+                                            : isLow 
+                                              ? "text-red-600 bg-red-50/50" 
+                                              : "text-slate-600"
+                                        }`}
                                       >
-                                        {qty === 0 ? (
+                                        {!isProductVisibleInBranch ? (
+                                          <span className="text-[10px] opacity-40">—</span>
+                                        ) : qty === 0 ? (
                                           <span className="opacity-20 text-[10px]">
                                             0
                                           </span>
@@ -4568,11 +4618,13 @@ export default function App() {
                             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-[9px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-100"
                           >
                             <option value="">Semua Cabang</option>
-                            {branches.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name}
-                              </option>
-                            ))}
+                            {branches
+                              .filter((b) => !hiddenShoppingBranchIds.includes(b.id))
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.name}
+                                </option>
+                              ))}
                           </select>
                           <select
                             value={shoppingListCategory}
@@ -4627,11 +4679,17 @@ export default function App() {
                                 )
                                   return;
                                 branches.forEach((b) => {
+                                  if (hiddenShoppingBranchIds.includes(b.id)) return;
                                   if (
                                     shoppingListBranch &&
                                     b.id !== shoppingListBranch
                                   )
                                     return;
+                                  // Check product visibility for this branch
+                                  const visibleIds = p.visibleBranchIds || "*";
+                                  const isProductVisibleInBranch = visibleIds === "*" || visibleIds.split(",").map((id: string) => id.trim()).includes(b.id);
+                                  if (!isProductVisibleInBranch) return;
+
                                   const qty = getBranchStock(b.id, p.id);
                                   if (qty <= p.minStock) {
                                     alerts.push({ product: p, branch: b, qty });
@@ -4924,6 +4982,7 @@ export default function App() {
                               {branches
                                 .slice()
                                 .sort((a, b) => naturalSort(a.name, b.name))
+                                .filter((b) => !hiddenShoppingBranchIds.includes(b.id))
                                 .map((b) => (
                                   <th
                                     key={b.id}
@@ -4975,7 +5034,18 @@ export default function App() {
                                       .sort((a, b) =>
                                         naturalSort(a.name, b.name),
                                       )
+                                      .filter((b) => !hiddenShoppingBranchIds.includes(b.id))
                                       .map((b) => {
+                                        const visibleIds = p?.visibleBranchIds || "*";
+                                        const isProductVisibleInBranch = visibleIds === "*" || visibleIds.split(",").map((id: string) => id.trim()).includes(b.id);
+                                        if (!isProductVisibleInBranch) {
+                                          return (
+                                            <td key={b.id} className="px-2 py-3 md:py-5 border-y border-slate-100 text-center text-slate-350">
+                                              <span className="text-xs opacity-30 italic font-medium">—</span>
+                                            </td>
+                                          );
+                                        }
+
                                         const isSafe =
                                           getBranchStock(b.id, item.productId) >
                                           (p?.minStock || 0);
@@ -5245,6 +5315,7 @@ export default function App() {
                                   (auditSelectedBranch &&
                                     visibleIds
                                       .split(",")
+                                      .map((id: string) => id.trim())
                                       .includes(auditSelectedBranch));
                                 if (!isVisible) return false;
 
@@ -6531,7 +6602,7 @@ export default function App() {
                             <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded-full ${posSelectedCategory === "Semua" ? "bg-white/25 text-white" : "bg-slate-200 text-slate-600"}`}>
                               {products.filter(p => {
                                 const visibleIds = p.visibleBranchIds || "*";
-                                return visibleIds === "*" || (profile?.branchId && visibleIds.split(",").includes(profile.branchId));
+                                return visibleIds === "*" || (profile?.branchId && visibleIds.split(",").map((id: string) => id.trim()).includes(profile.branchId));
                               }).length}
                             </span>
                           </button>
@@ -6539,7 +6610,7 @@ export default function App() {
                           {DEFAULT_CATEGORIES.map((cat) => {
                             const matchCount = products.filter(p => {
                               const visibleIds = p.visibleBranchIds || "*";
-                              const isVisible = visibleIds === "*" || (profile?.branchId && visibleIds.split(",").includes(profile.branchId));
+                              const isVisible = visibleIds === "*" || (profile?.branchId && visibleIds.split(",").map((id: string) => id.trim()).includes(profile.branchId));
                               return isVisible && p.category === cat;
                             }).length;
 
