@@ -583,6 +583,49 @@ export default function App() {
   const [showShiftSummary, setShowShiftSummary] = useState<number | null>(null);
   const [actualCashInput, setActualCashInput] = useState<string>("");
   const [checkoutSuccessData, setCheckoutSuccessData] = useState<{ total: number; itemsCount: number; timestamp: string; branchId?: string } | null>(null);
+  const [globalAlerts, setGlobalAlerts] = useState<{ id: string; message: string; type: "info" | "warning" | "success" }[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{ message: string; resolve: (res: boolean) => void } | null>(null);
+
+  // Expose async confirm triggers globally
+  const triggerConfirm = (message: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setConfirmModal({ message, resolve });
+    });
+  };
+
+  useEffect(() => {
+    const handleCustomAlert = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string; type?: "info" | "warning" | "success" }>;
+      const message = customEvent.detail?.message || String(customEvent.detail);
+      const type = customEvent.detail?.type || "info";
+      
+      const id = Math.random().toString(36).substring(2, 9);
+      setGlobalAlerts((prev) => [...prev, { id, message, type }]);
+
+      // Auto dismiss
+      setTimeout(() => {
+        setGlobalAlerts((prev) => prev.filter((a) => a.id !== id));
+      }, 5000);
+    };
+
+    window.addEventListener("app-custom-alert" as any, handleCustomAlert);
+
+    // Override original window.alert safety
+    const originalAlert = window.alert;
+    window.alert = (msg: string) => {
+      // Dispatches custom event
+      window.dispatchEvent(
+        new CustomEvent("app-custom-alert", {
+          detail: { message: msg, type: "info" }
+        })
+      );
+    };
+
+    return () => {
+      window.removeEventListener("app-custom-alert" as any, handleCustomAlert);
+      window.alert = originalAlert;
+    };
+  }, []);
 
   const getProductName = (p: any, fallback?: string) => {
     if (!p) return fallback || "Bonus";
@@ -1574,7 +1617,8 @@ export default function App() {
     }
     
     if (sale.status === "refunded") return alert("Transaksi ini sudah di-refund.");
-    if (!window.confirm("Refund seluruh transaksi ini? Stok akan dikembalikan ke cabang.")) return;
+    const confirmRefund = await triggerConfirm("Refund seluruh transaksi ini? Stok akan dikembalikan ke cabang.");
+    if (!confirmRefund) return;
 
     setIsProcessingRefund(true);
     try {
@@ -6607,9 +6651,9 @@ export default function App() {
                                     return (
                                       <button
                                         key={p.id}
-                                        onClick={() => {
+                                        onClick={async () => {
                                           if (isOutOfStock) {
-                                            const confirmAdd = window.confirm(`Peringatan: Stok ${p.name} di sistem terdeteksi kosong (0 Pcs).\n\nTetap tambahkan ke nota penjualan?`);
+                                            const confirmAdd = await triggerConfirm(`Peringatan: Stok ${p.name} di sistem terdeteksi kosong (0 Pcs).\n\nTetap tambahkan ke nota penjualan?`);
                                             if (!confirmAdd) return;
                                           }
                                           addToCart(p);
@@ -6680,8 +6724,9 @@ export default function App() {
                           </div>
                           {cart.length > 0 && (
                             <button
-                              onClick={() => {
-                                if (window.confirm("Batal seluruh nota dan kosongkan keranjang?")) {
+                              onClick={async () => {
+                                const confirmClear = await triggerConfirm("Batal seluruh nota dan kosongkan keranjang?");
+                                if (confirmClear) {
                                   setCart([]);
                                 }
                               }}
@@ -6894,9 +6939,9 @@ export default function App() {
                                     return (
                                       <button
                                         key={p.id}
-                                        onClick={() => {
+                                        onClick={async () => {
                                           if (isOutOfStock) {
-                                            const confirmAdd = window.confirm(`Peringatan: Stok ${p.name} di sistem kosong.\n\nTetap tambahkan ke nota penjualan?`);
+                                            const confirmAdd = await triggerConfirm(`Peringatan: Stok ${p.name} di sistem kosong.\n\nTetap tambahkan ke nota penjualan?`);
                                             if (!confirmAdd) return;
                                           }
                                           addToCart(p);
@@ -8602,6 +8647,65 @@ export default function App() {
         onClose={() => setCheckoutSuccessData(null)}
         branches={branches}
       />
+    )}
+
+    {/* --- BRAND ALERT TOAST MULTIPLE POPUPS (NO WEB ADDRESS NO DOMAIN SHOWN) --- */}
+    <div className="fixed top-4 right-4 z-[99999] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+      {globalAlerts.map((alert) => (
+        <div
+          key={alert.id}
+          className="pointer-events-auto bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/50 p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in slide-in-from-top-4 duration-300 relative border-l-4 border-l-amber-500"
+        >
+          <div className="w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Informasi Sistem</p>
+            <p className="text-[11px] font-bold text-slate-100 mt-0.5 leading-relaxed break-words">{alert.message}</p>
+          </div>
+          <button
+            onClick={() => setGlobalAlerts((prev) => prev.filter((a) => a.id !== alert.id))}
+            className="text-slate-400 hover:text-white transition-colors p-1"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+
+    {/* --- BRAND CONFIRMATION POPUP (NO WEB ADDRESS NO DOMAIN SHOWN) --- */}
+    {confirmModal && (
+      <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden border border-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-6 text-center">
+            <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
+            </div>
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-2">Konfirmasi Tindakan</h3>
+            <p className="text-xs text-slate-500 font-bold leading-relaxed">{confirmModal.message}</p>
+          </div>
+          <div className="p-4 bg-slate-50 border-t border-slate-150 flex gap-2">
+            <button
+              onClick={() => {
+                confirmModal.resolve(false);
+                setConfirmModal(null);
+              }}
+              className="flex-1 bg-white border border-slate-200 hover:bg-slate-100 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 active:scale-95 transition-all text-center cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              onClick={() => {
+                confirmModal.resolve(true);
+                setConfirmModal(null);
+              }}
+              className="flex-1 bg-slate-900 text-white hover:bg-black py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all text-center cursor-pointer"
+            >
+              Ya, Setuju
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );
