@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: kasir-stb-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # Koneksi Database Supabase Cloud Anda (Ganti dengan connection string dari Supabase)
+      # Supabase memberikan dua string: satu untuk Transaction Pooler (DATABASE_URL) dan satu untuk Session/Direct (DIRECT_URL)
+      - DATABASE_URL=postgresql://postgres:[PASSWORD_SUPABASE]@db.[REF_SUPABASE].supabase.co:6543/postgres?sslmode=require&pgbouncer=true
+      - DIRECT_URL=postgresql://postgres:[PASSWORD_SUPABASE]@db.[REF_SUPABASE].supabase.co:5432/postgres?sslmode=require
+      
+      # JWT Secret Key (Kunci keamanan token login Kasir - buat acak untuk keamanan)
+      - JWT_SECRET=alfath-kasir-stb-secretkey-2026
+      
+      # Mode Environment
+      - NODE_ENV=production
