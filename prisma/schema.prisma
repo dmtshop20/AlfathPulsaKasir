@@ -37,14 +37,15 @@ model Branch {
   allowEmployeeInput Boolean  @default(true)
   createdAt          DateTime @default(now())
   
-  users          User[]
-  sales          Sale[]
-  adjustments    Adjustment[]
-  shifts         Shift[]
-  stockSnapshots StockSnapshot[]
-  productStocks  ProductStock[]
-  commissions    Commission[]
-  voucherSNs     VoucherSN[]
+  users                User[]
+  sales                Sale[]
+  adjustments          Adjustment[]
+  shifts               Shift[]
+  stockSnapshots       StockSnapshot[]
+  productStocks        ProductStock[]
+  commissions          Commission[]
+  voucherSNs           VoucherSN[]
+  dailyIncomeSummaries DailyIncomeSummary[]
 }
 
 model Product {
@@ -135,8 +136,8 @@ model SaleItem {
 
 model Commission {
   id          String   @id @default(uuid())
-  sale        Sale     @relation(fields: [saleId], references: [id])
-  saleId      String
+  sale        Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  saleId      String?
   product     Product  @relation(fields: [productId], references: [id])
   productId   String
   qty         Int
@@ -202,4 +203,18 @@ model StockSnapshot {
   finalQty    Int
   timestamp   DateTime @default(now())
   type        String   // SHIFT_CLOSE, AUDIT_CHECK
+}
+
+model DailyIncomeSummary {
+  id              String   @id @default(uuid())
+  date            String   // format: "YYYY-MM-DD"
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id])
+  revenue         Float    @default(0)
+  totalProfit     Float    @default(0)
+  totalCommission Float    @default(0)
+  salesCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@unique([branchId, date])
 }

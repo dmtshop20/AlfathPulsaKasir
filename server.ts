@@ -955,14 +955,254 @@ app.post("/api/adjustments/cleanup", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/api/daily-summaries", authenticateToken, async (req, res) => {
+  try {
+    // 1. Fetch archived daily summaries
+    const archivedSummaries = await prisma.dailyIncomeSummary.findMany({
+      orderBy: { date: "asc" }
+    });
+
+    // 2. Fetch active sales to build current summaries
+    const activeSales = await prisma.sale.findMany({
+      where: { status: "success" },
+      orderBy: { createdAt: "asc" }
+    });
+
+    // 3. Group active sales by branch and date
+    const activeGrouped: Record<string, {
+      id: string;
+      date: string;
+      branchId: string;
+      revenue: number;
+      profit: number;
+      totalCommission: number;
+      count: number;
+    }> = {};
+
+    for (const sale of activeSales) {
+      const dateStr = getLogicalShiftDate(sale.createdAt);
+      const key = `${sale.branchId}_${dateStr}`;
+      
+      if (!activeGrouped[key]) {
+        activeGrouped[key] = {
+          id: `active_${key}`,
+          date: dateStr,
+          branchId: sale.branchId,
+          revenue: 0,
+          profit: 0,
+          totalCommission: 0,
+          count: 0
+        };
+      }
+
+      activeGrouped[key].revenue += sale.total;
+      activeGrouped[key].profit += sale.totalProfit;
+      activeGrouped[key].totalCommission += sale.totalCommission;
+      activeGrouped[key].count += 1;
+    }
+
+    // 4. Merge them together.
+    const mergedMap: Record<string, any> = {};
+
+    // First load archived summaries
+    for (const s of archivedSummaries) {
+      const key = `${s.branchId}_${s.date}`;
+      mergedMap[key] = {
+        id: s.id,
+        date: s.date,
+        branchId: s.branchId,
+        revenue: s.revenue,
+        profit: s.totalProfit,
+        totalCommission: s.totalCommission,
+        count: s.salesCount
+      };
+    }
+
+    // Then merge active grouped sales (sum if overlap)
+    for (const [key, s] of Object.entries(activeGrouped)) {
+      if (mergedMap[key]) {
+        mergedMap[key].revenue += s.revenue;
+        mergedMap[key].profit += s.profit;
+        mergedMap[key].totalCommission += s.totalCommission;
+        mergedMap[key].count += s.count;
+      } else {
+        mergedMap[key] = s;
+      }
+    }
+
+    const mergedList = Object.values(mergedMap);
+    // Sort by date ascending
+    mergedList.sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+    res.json(mergedList);
+  } catch (error: any) {
+    console.error("Get Daily Summaries Error:", error);
+    res.status(500).json({ error: "Gagal mengambil ringkasan harian: " + error.message });
+  }
+});
+
+function getLogicalShiftDate(d: Date = new Date()) {
+  const date = new Date(d);
+  if (date.getHours() < 6) {
+    date.setDate(date.getDate() - 1);
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+async function autoArchiveOldSales() {
+  try {
+    const date30DaysAgo = new Date();
+    date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
+
+    const oldSales = await prisma.sale.findMany({
+      where: {
+        createdAt: { lt: date30DaysAgo }
+      }
+    });
+
+    if (oldSales.length === 0) return;
+
+    console.log(`Starting auto-archiving of ${oldSales.length} old sales...`);
+
+    const groups: Record<string, {
+      revenue: number;
+      profit: number;
+      commissions: number;
+      count: number;
+    }> = {};
+
+    for (const sale of oldSales) {
+      const logicalDate = getLogicalShiftDate(sale.createdAt);
+      const key = `${sale.branchId}_${logicalDate}`;
+      
+      if (!groups[key]) {
+        groups[key] = { revenue: 0, profit: 0, commissions: 0, count: 0 };
+      }
+
+      if (sale.status === "success") {
+        groups[key].revenue += sale.total;
+        groups[key].profit += sale.totalProfit;
+        groups[key].commissions += sale.totalCommission;
+        groups[key].count += 1;
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const [key, delta] of Object.entries(groups)) {
+        const [branchId, date] = key.split("_");
+        await tx.dailyIncomeSummary.upsert({
+          where: {
+            branchId_date: { branchId, date }
+          },
+          update: {
+            revenue: { increment: delta.revenue },
+            totalProfit: { increment: delta.profit },
+            totalCommission: { increment: delta.commissions },
+            salesCount: { increment: delta.count }
+          },
+          create: {
+            branchId,
+            date,
+            revenue: delta.revenue,
+            totalProfit: delta.profit,
+            totalCommission: delta.commissions,
+            salesCount: delta.count
+          }
+        });
+      }
+
+      const oldSaleIds = oldSales.map(s => s.id);
+      
+      // 1. Unlink commissions that are still "earned" so they don't get deleted
+      await tx.commission.updateMany({
+        where: {
+          saleId: { in: oldSaleIds },
+          status: "earned"
+        },
+        data: {
+          saleId: null
+        }
+      });
+
+      // 2. Delete commissions that are already withdrawn or refunded to keep DB lean
+      await tx.commission.deleteMany({
+        where: {
+          saleId: { in: oldSaleIds }
+        }
+      });
+      
+      await tx.saleItem.deleteMany({
+        where: { saleId: { in: oldSaleIds } }
+      });
+
+      await tx.voucherSN.updateMany({
+        where: { saleId: { in: oldSaleIds } },
+        data: { saleId: null }
+      });
+      
+      await tx.sale.deleteMany({
+        where: { id: { in: oldSaleIds } }
+      });
+    });
+
+    console.log(`Auto-archive completed: ${oldSales.length} transactions processed.`);
+  } catch (err) {
+    console.error("Auto Archive Old Sales Error:", err);
+  }
+}
+
 // Vite Middleware
 async function startServer() {
   // 1. Try to connect to DB in background
   prisma.$connect()
-    .then(() => {
+    .then(async () => {
       console.log("✅ Database connection established.");
+
+      // Dynamic table creation for DailyIncomeSummary to bypass prisma db push sandbox timeout limitations
+      try {
+        console.log("🔄 Verifying DailyIncomeSummary table exists...");
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "DailyIncomeSummary" (
+            "id" TEXT NOT NULL,
+            "date" TEXT NOT NULL,
+            "branchId" TEXT NOT NULL,
+            "revenue" DOUBLE PRECISION NOT NULL DEFAULT 0,
+            "totalProfit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+            "totalCommission" DOUBLE PRECISION NOT NULL DEFAULT 0,
+            "salesCount" INTEGER NOT NULL DEFAULT 0,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "DailyIncomeSummary_pkey" PRIMARY KEY ("id"),
+            CONSTRAINT "DailyIncomeSummary_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+          );
+        `);
+        await prisma.$executeRawUnsafe(`
+          CREATE UNIQUE INDEX IF NOT EXISTS "DailyIncomeSummary_branchId_date_key" ON "DailyIncomeSummary"("branchId", "date");
+        `);
+        console.log("✅ DailyIncomeSummary table verified.");
+      } catch (tableErr: any) {
+        console.error("⚠️ Failed to ensure DailyIncomeSummary table exists:", tableErr.message);
+      }
+
+      // Ensure Commission.saleId can be NULL to preserve earned commissions
+      try {
+        console.log("🔄 Adjusting Commission.saleId constraint to allow NULL...");
+        await prisma.$executeRawUnsafe(`
+          ALTER TABLE "Commission" ALTER COLUMN "saleId" DROP NOT NULL;
+        `);
+        console.log("✅ Commission.saleId constraint adjusted successfully.");
+      } catch (err: any) {
+        console.log("ℹ️ Commission.saleId adjustment info (it might be already nullable):", err.message);
+      }
+
       // Credentials sync logic
       syncCredentials();
+      // Run automatic archiving of old sales (older than 30 days)
+      autoArchiveOldSales();
+      // Run autoArchive periodically every 12 hours
+      setInterval(autoArchiveOldSales, 12 * 60 * 60 * 1000);
     })
     .catch((error) => {
       console.error("❌ Database connection failed at startup:", error.message);

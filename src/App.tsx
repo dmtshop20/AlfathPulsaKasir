@@ -1162,10 +1162,11 @@ export default function App() {
         const sData = await api.getSales({ branchId: effectiveBranchId }).catch(e => { console.error("Sales Load Error:", e); return sales; });
         const cData = await api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; });
         
-        const [shData, uData, aData] = await Promise.all([
+        const [shData, uData, aData, dsData] = await Promise.all([
           api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
           api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
-          api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; })
+          api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; }),
+          api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; })
         ]);
         
         setProducts(pData);
@@ -1174,6 +1175,7 @@ export default function App() {
         setShifts(shData);
         setUsers(uData);
         setAdjustments(aData);
+        setDailySummaries(dsData || []);
         
         // Also sync commission summaries
         if (isAdmin) {
@@ -2178,94 +2180,71 @@ export default function App() {
     }
   };
 
+  const currentShiftSales = useMemo(() => {
+    if (!shiftOpen || !shiftStartTime) return [];
+    return sales.filter(
+      (s) =>
+        s.branchId === profile?.branchId &&
+        s.status !== "refunded" &&
+        new Date(s.createdAt || s.timestamp || 0).getTime() >=
+          new Date(shiftStartTime).getTime()
+    );
+  }, [sales, shiftOpen, shiftStartTime, profile?.branchId]);
+
+  const currentShiftTotalSales = useMemo(() => {
+    return currentShiftSales.reduce((sum, s) => sum + (s.total || 0), 0);
+  }, [currentShiftSales]);
 
   const [dashboardDateRange, setDashboardDateRange] = useState<"today" | "week" | "month" | "all">("today");
 
   const dashboardStats = useMemo(() => {
     const now = new Date();
     const todayStr = getLogicalShiftDate(now).replace(/\//g, "-");
-    
-    // Fallback: Calculate from Sales if summaries are empty (for today's session)
-    // or if we need very precise current moment data.
-    
-    // Aggregation Logic:
-    // If range is "today", we look at today's summary OR current sales.
-    // Let's prioritize DailySummaries as they are updated in real-time.
 
     const startOfWeek = new Date(now);
     const day = startOfWeek.getDay() || 7;
-    if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
+    if (day !== 1) startOfWeek.setDate(startOfWeek.getDate() - (day - 1));
     startOfWeek.setHours(0, 0, 0, 0);
     const startOfWeekStr = formatDateLocal(startOfWeek).replace(/\//g, "-");
 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfMonthStr = formatDateLocal(startOfMonth).replace(/\//g, "-");
 
-    const filteredSummaries = dailySummaries.filter(s => {
-        const branchMatch = !adminSalesBranchFilter || s.branchId === adminSalesBranchFilter;
-        if (!branchMatch) return false;
+    // Filter summaries directly
+    const filteredSummaries = dailySummaries.filter((s) => {
+      // Filter by branch if owner selected one
+      const branchMatch = !adminSalesBranchFilter || s.branchId === adminSalesBranchFilter;
+      if (!branchMatch) return false;
 
-        if (dashboardDateRange === "today") return s.date === todayStr;
-        if (dashboardDateRange === "week") return s.date >= startOfWeekStr;
-        if (dashboardDateRange === "month") return s.date >= startOfMonthStr;
-        return true;
+      // Extract physical or logical shift date
+      const summaryDateStr = (s.date || "").replace(/\//g, "-");
+
+      if (dashboardDateRange === "today") return summaryDateStr === todayStr;
+      if (dashboardDateRange === "week") return summaryDateStr >= startOfWeekStr;
+      if (dashboardDateRange === "month") return summaryDateStr >= startOfMonthStr;
+      return true; // "all"
     });
 
-    const stats = filteredSummaries.reduce((acc, s) => {
-        acc.revenue += (s.revenue || 0);
-        // Net Profit = Revenue - Cost of Goods Sold - Commission
-        // If the summary already subtracted commission, we should check.
-        // Assuming DailySummary.profit currently only does (Revenue - Cost).
-        acc.profit += (s.profit || 0) - (s.totalCommission || 0);
-        acc.count += (s.count || 0);
-        return acc;
-    }, { revenue: 0, profit: 0, count: 0 });
-
-    // Per-Branch breakdown for chart (Efficient!)
+    // Per-Branch breakdown
     const branchBreakdown: Record<string, number> = {};
-    filteredSummaries.forEach(s => {
+
+    const stats = filteredSummaries.reduce(
+      (acc, s) => {
+        // Aggregate revenue
+        acc.revenue += s.revenue || 0;
+        acc.profit += s.profit || 0;
+        acc.count += s.count || 0;
+
+        // Group by branch
         branchBreakdown[s.branchId] = (branchBreakdown[s.branchId] || 0) + (s.revenue || 0);
-    });
 
-    // Fallback: If today is selected but summary hasn't propagated or we want robustness
-    if (dashboardDateRange === "today") {
-        const todaySales = sales.filter(s => {
-            const saleLogicalStr = (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt))).replace(/\//g, "-");
-            const branchMatch = !adminSalesBranchFilter || s.branchId === adminSalesBranchFilter;
-            return saleLogicalStr === todayStr && branchMatch && s.status !== "refunded";
-        });
-        
-        const recalculated = todaySales.reduce((acc, s) => {
-            acc.revenue += (s.total || 0);
-            
-            // Prefer pre-calculated profit for maximum accuracy
-            let currentProfit = s.totalProfit;
-            if (currentProfit === undefined) {
-                // Calculation fallback for older records
-                const capital = (s.items || []).reduce((sum: number, it: any) => {
-                    const pid = it.productId || it.id;
-                    const pPrice = it.purchasePrice !== undefined ? it.purchasePrice : (productMap.get(pid) as any)?.buyingPrice || 0;
-                    return sum + (Number(pPrice) * Number(it.qty || 0));
-                }, 0);
-                // Profit = (Total Sale Value) - (Capital Cost) - (Staff Commission)
-                currentProfit = (s.total || 0) - capital - (s.totalCommission || 0);
-            }
-            
-            acc.profit += currentProfit;
-            acc.count += 1;
-            return acc;
-        }, { revenue: 0, profit: 0, count: 0 });
-
-        // Merge today breakdown
-        todaySales.forEach(s => {
-            branchBreakdown[s.branchId] = (branchBreakdown[s.branchId] || 0) + (s.total || 0);
-        });
-
-        return { ...recalculated, branchBreakdown };
-    }
+        return acc;
+      },
+      { revenue: 0, profit: 0, count: 0 }
+    );
 
     return { ...stats, branchBreakdown };
-  }, [dailySummaries, sales, adminSalesBranchFilter, dashboardDateRange, productMap]);
+  }, [dailySummaries, adminSalesBranchFilter, dashboardDateRange]);
 
   // --- VIEW RENDERING HELPERS ---
   const getPageTitle = () => {
@@ -7783,8 +7762,8 @@ export default function App() {
               </div>
             )}
             {activeMenu === "shift" && profile?.role === "CASHIER" && (
-              <div className="flex-1 p-4 md:p-4 md:p-6 overflow-y-auto w-full flex items-center justify-center relative">
-                <div className="max-w-md w-full bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden relative">
+              <div className="flex-1 p-4 md:p-6 overflow-y-auto w-full flex flex-col xl:flex-row items-center xl:items-start justify-center gap-6 relative">
+                <div className="max-w-md w-full bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden relative shrink-0">
                   <div className="p-4 md:p-8 border-b border-slate-200 bg-slate-900 text-white text-center relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                     <Clock className="w-14 h-14 text-blue-400 mx-auto mb-4 relative z-10" />
@@ -7953,6 +7932,66 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                {/* REAL-TIME CURRENT SHIFT TRANSACTIONS LIST */}
+                {shiftOpen && (
+                  <div className="flex-1 max-w-2xl w-full bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden relative flex flex-col min-h-[400px] animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="p-5 md:p-6 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                      <div className="text-left">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight leading-none mb-1">
+                          Riwayat Transaksi Shift Ini
+                        </h3>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                          Daftar penjualan terdaftar selama sesi shift aktif berjalan
+                        </p>
+                      </div>
+                      <div className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-3 py-1.5 rounded-xl font-bold font-mono text-xs flex items-center gap-1.5 justify-center self-start sm:self-auto">
+                        <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                        Rp {currentShiftTotalSales.toLocaleString("id-ID")}
+                      </div>
+                    </div>
+
+                    <div className="p-5 md:p-6 overflow-y-auto max-h-[500px] flex-1">
+                      {currentShiftSales.length === 0 ? (
+                        <div className="py-20 text-center text-slate-400 space-y-3">
+                          <ShoppingBag className="w-10 h-10 text-slate-300 mx-auto animate-bounce" />
+                          <p className="text-[9px] font-black uppercase tracking-[0.2em]">Belum Ada Transaksi</p>
+                          <p className="text-[8px] text-slate-400 uppercase leading-none font-bold">Lakukan penjualan di menu kasir untuk merekam data di sini</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {currentShiftSales.map((sale) => (
+                            <div key={sale.id} className="p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">
+                                    {sale.customerName || "Pelanggan Biasa"}
+                                  </span>
+                                  <span className="text-[8px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded leading-none">
+                                    {new Date(sale.createdAt || sale.timestamp || 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <div className="text-[8px] text-slate-400 font-bold uppercase tracking-tight flex flex-wrap gap-1 leading-none">
+                                  <span>Kasir: {sale.cashier?.name || cashierName}</span>
+                                  <span>• {sale.items?.length || 0} Item</span>
+                                </div>
+                                <div className="text-[9px] text-slate-600 font-medium">
+                                  {sale.items?.map((it: any) => `${it.product?.name || 'Produk'} (x${it.qty})`).join(", ")}
+                                </div>
+                              </div>
+                              <div className="text-right sm:text-right flex sm:flex-col justify-between sm:justify-center items-center sm:items-end gap-1 border-t sm:border-0 pt-2 sm:pt-0 border-slate-50">
+                                <span className="text-[8px] sm:hidden font-black text-slate-400 uppercase tracking-widest">Total:</span>
+                                <span className="text-xs font-black text-slate-900 font-mono">
+                                  Rp {(sale.total || 0).toLocaleString("id-ID")}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* SHIFT SUMMARY MODAL overlay inside view */}
                 {showShiftSummary !== null && (

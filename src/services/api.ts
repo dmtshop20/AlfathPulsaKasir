@@ -289,5 +289,13 @@ export const api = {
     });
     if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to cleanup adjustments: ${res.status} ${txt}`); }
     return res.json();
+  },
+
+  async getDailySummaries() {
+    const res = await fetch(`${BASE_URL}/daily-summaries`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch daily summaries: ${res.status} ${txt}`); }
+    return res.json();
   }
 };
