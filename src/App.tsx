@@ -64,6 +64,8 @@ import {
   History as HistoryIcon,
   Zap,
   Mail,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { io } from "socket.io-client";
@@ -298,6 +300,21 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 export default function App() {
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem("theme");
+    return saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
+
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -2788,6 +2805,17 @@ export default function App() {
                 </span>
               </div>
               <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="flex items-center justify-center h-8.5 w-8.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 shrink-0 shadow-sm cursor-pointer transition-all"
+                title={darkMode ? "Aktifkan Mode Terang" : "Aktifkan Mode Gelap"}
+              >
+                {darkMode ? (
+                  <Sun className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <Moon className="w-4 h-4 text-slate-500" />
+                )}
+              </button>
+              <button
                 onClick={handleAppLogout}
                 className="lg:hidden w-8 h-8 rounded bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center shrink-0"
               >
@@ -3033,7 +3061,7 @@ export default function App() {
             {/* --- 2. ADMIN: PENGATURAN CABANG --- */}
             {activeMenu === "reports" &&
               (profile?.role === "ADMIN" || profile?.role === "AUDIT") && (
-                <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-[#f8fafc] content-fade">
+                <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-slate-50 content-fade">
                   <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 text-left">
                     <div>
                       <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight">
@@ -4465,7 +4493,7 @@ export default function App() {
 
             {/* --- 4. ADMIN: STOK PER CABANG --- */}
             {activeMenu === "branch_stocks" && profile?.role === "ADMIN" && (
-              <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-[#f8fafc] content-fade">
+              <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-slate-50 content-fade">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                   <div>
                     <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight">
@@ -4612,7 +4640,7 @@ export default function App() {
 
             {/* --- 5. ADMIN: DAFTAR BELANJA (LOW STOCK) --- */}
             {activeMenu === "shopping_list" && profile?.role === "ADMIN" && (
-              <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-[#f8fafc] content-fade">
+              <div className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-slate-50 content-fade">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 text-left">
                   <div>
                     <div className="flex items-center gap-3 mb-2 text-left">
@@ -8214,7 +8242,7 @@ export default function App() {
 
             {/* --- 7. ADMIN: DASHBOARD (Overview Live Sales) --- */}
             {activeMenu === "dashboard" && profile?.role === "ADMIN" && (
-              <div className="flex-1 flex flex-col overflow-hidden bg-[#f8fafc]">
+              <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
                 {/* HEADER DASHBOARD COMPACT */}
                 <div className="bg-white px-4 md:px-8 py-4 md:py-6 border-b border-slate-200 shrink-0">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

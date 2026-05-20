@@ -16,6 +16,329 @@
   }
 }
 
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --canvas-bg: #f8fafc;
+  --card-bg: #ffffff;
+  --text-main: #1e293b;
+  --text-mute: #64748b;
+  --border-color: #e2e8f0;
+  --input-bg: #f8fafc;
+}
+
+.dark {
+  --canvas-bg: #090e17;
+  --card-bg: #121b2d;
+  --text-main: #f8fafc;
+  --text-mute: #94a3b8;
+  --border-color: #1a273f;
+  --input-bg: #172237;
+}
+
+body {
+  @apply font-sans;
+  background-color: var(--canvas-bg);
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Global Manual Dark Mode Overrides */
+.dark, .dark body, .dark html, .dark main, .dark .min-h-screen {
+  background-color: var(--canvas-bg) !important;
+  color: var(--text-main) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-50\/30,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-100,
+.dark .bg-slate-100\/50,
+.dark .bg-slate-100\/80,
+.dark .bg-slate-50\/80,
+.dark .bg-slate-100\/10,
+.dark main.bg-slate-50\/50 {
+  background-color: var(--input-bg) !important;
+}
+
+/* Ensure outer full layers remain canvas background, not input background */
+.dark .min-h-screen.bg-slate-50,
+.dark .min-h-screen.bg-slate-100,
+.dark main.bg-slate-50\/50,
+.dark div[class*="min-h-screen"] {
+  background-color: var(--canvas-bg) !important;
+}
+
+.dark .bg-white {
+  background-color: var(--card-bg) !important;
+  color: var(--text-main) !important;
+}
+
+.dark header.bg-white,
+.dark header,
+.dark footer,
+.dark .bg-white:not(aside) {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-slate-400,
+.dark .border-slate-200\/60,
+.dark .border-slate-100\/60,
+.dark .border-slate-300\/60 {
+  border-color: var(--border-color) !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-900,
+.dark .text-slate-950 {
+  color: var(--text-main) !important;
+}
+
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: var(--text-mute) !important;
+}
+
+.dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--input-bg) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark input::placeholder,
+.dark select::placeholder,
+.dark textarea::placeholder {
+  color: #4b5d7a !important;
+}
+
+.dark table thead tr,
+.dark thead.bg-slate-100,
+.dark .thead.bg-slate-100 {
+  background-color: var(--input-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark table thead th,
+.dark table thead tr th {
+  color: var(--text-main) !important;
+  background-color: #172237 !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark table tbody tr:hover,
+.dark tr.hover\:bg-slate-50:hover,
+.dark .hover\:bg-blue-50:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover,
+.dark div.hover\:bg-slate-50:hover,
+.dark .group:hover .group-hover\:bg-white {
+  background-color: #1c2a41 !important;
+}
+
+/* Category header dividers in the tables */
+.dark tr.bg-slate-50,
+.dark tr.bg-slate-50\/50,
+.dark td.bg-slate-50 {
+  background-color: #172237 !important;
+  color: var(--text-main) !important;
+}
+
+/* Colored accent wells */
+.dark .bg-blue-50,
+.dark .bg-blue-50\/50,
+.dark tr.bg-blue-50\/50 {
+  background-color: rgba(30, 58, 138, 0.25) !important;
+  color: #93c5fd !important;
+  border-color: rgba(30, 58, 138, 0.45) !important;
+}
+
+.dark .text-blue-900 {
+  color: #93c5fd !important;
+}
+
+.dark td.border-b-2 {
+  border-color: rgba(30, 58, 138, 0.5) !important;
+}
+
+/* Badge tags & custom pill colors in dark mode */
+.dark span.bg-purple-50,
+.dark div.bg-purple-50,
+.dark p.bg-purple-50 {
+  background-color: rgba(88, 28, 135, 0.25) !important;
+  border-color: rgba(107, 33, 168, 0.45) !important;
+  color: #d8b4fe !important;
+}
+
+.dark span.bg-blue-50,
+.dark div.bg-blue-50,
+.dark p.bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.25) !important;
+  border-color: rgba(29, 78, 216, 0.4) !important;
+  color: #93c5fd !important;
+}
+
+.dark span.bg-emerald-50,
+.dark div.bg-emerald-50,
+.dark p.bg-emerald-50,
+.dark .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.25) !important;
+  border-color: rgba(4, 120, 87, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+.dark span.bg-red-50,
+.dark div.bg-red-50,
+.dark p.bg-red-50,
+.dark .bg-red-50,
+.dark .bg-red-50\/50,
+.dark .bg-red-50\/10 {
+  background-color: rgba(127, 29, 29, 0.25) !important;
+  border-color: rgba(153, 27, 27, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+.dark span.bg-amber-50,
+.dark div.bg-amber-50,
+.dark p.bg-amber-50,
+.dark .bg-amber-50 {
+  background-color: rgba(120, 53, 15, 0.25) !important;
+  border-color: rgba(146, 64, 14, 0.4) !important;
+  color: #fde047 !important;
+}
+
+.dark span.bg-indigo-50,
+.dark div.bg-indigo-50,
+.dark p.bg-indigo-50,
+.dark .bg-indigo-50 {
+  background-color: rgba(49, 46, 129, 0.25) !important;
+  border-color: rgba(67, 56, 202, 0.4) !important;
+  color: #a5b4fc !important;
+}
+
+.dark span.bg-purple-50,
+.dark div.bg-purple-50,
+.dark p.bg-purple-50,
+.dark .bg-purple-50 {
+  background-color: rgba(88, 28, 135, 0.25) !important;
+  border-color: rgba(107, 33, 168, 0.4) !important;
+  color: #d8b4fe !important;
+}
+
+.dark span.bg-rose-50,
+.dark div.bg-rose-50,
+.dark p.bg-rose-50,
+.dark .bg-rose-50,
+.dark .bg-rose-50\/50,
+.dark .bg-rose-50\/10 {
+  background-color: rgba(159, 18, 57, 0.25) !important;
+  border-color: rgba(190, 18, 60, 0.4) !important;
+  color: #fda4af !important;
+}
+
+.dark span.bg-orange-50,
+.dark div.bg-orange-50,
+.dark p.bg-orange-50,
+.dark .bg-orange-50 {
+  background-color: rgba(154, 52, 18, 0.25) !important;
+  border-color: rgba(194, 65, 12, 0.4) !important;
+  color: #fdba74 !important;
+}
+
+.dark span.bg-blue-50,
+.dark div.bg-blue-50,
+.dark p.bg-blue-50,
+.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.25) !important;
+  border-color: rgba(30, 64, 175, 0.4) !important;
+  color: #93c5fd !important;
+}
+
+.dark p.text-slate-400,
+.dark span.text-slate-400 {
+  color: var(--text-mute) !important;
+}
+
+.dark .text-blue-600,
+.dark .text-blue-700,
+.dark .text-blue-800,
+.dark .text-blue-900 {
+  color: #60a5fa !important;
+}
+
+.dark .text-emerald-600,
+.dark .text-emerald-700,
+.dark .text-emerald-800,
+.dark .text-emerald-900 {
+  color: #34d399 !important;
+}
+
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800,
+.dark .text-red-900 {
+  color: #f87171 !important;
+}
+
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-amber-900 {
+  color: #fbbf24 !important;
+}
+
+.dark .text-purple-600,
+.dark .text-purple-700,
+.dark .text-purple-800,
+.dark .text-purple-900 {
+  color: #c084fc !important;
+}
+
+.dark .text-indigo-600,
+.dark .text-indigo-700,
+.dark .text-indigo-800,
+.dark .text-indigo-900 {
+  color: #818cf8 !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: var(--input-bg) !important;
+}
+
+/* Modals background styles */
+.dark .bg-black\/95,
+.dark .bg-black\/50,
+.dark .bg-black\/75 {
+  background-color: rgba(3, 5, 10, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Custom Premium Dark Scrollbars */
+.dark *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark *::-webkit-scrollbar-track {
+  background: var(--canvas-bg);
+}
+.dark *::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: var(--text-mute);
+}
+
 @utility hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
