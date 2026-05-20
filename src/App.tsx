@@ -582,6 +582,7 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(true);
   const [showShiftSummary, setShowShiftSummary] = useState<number | null>(null);
   const [actualCashInput, setActualCashInput] = useState<string>("");
+  const [checkoutSuccessData, setCheckoutSuccessData] = useState<{ total: number; itemsCount: number; timestamp: string; branchId?: string } | null>(null);
 
   const getProductName = (p: any, fallback?: string) => {
     if (!p) return fallback || "Bonus";
@@ -1922,9 +1923,12 @@ export default function App() {
       const pData = await api.getProducts();
       setProducts(pData);
 
-      setTimeout(() => {
-        alert(`PEMBAYARAN BERHASIL!\nTotal: Rp ${currentTotal.toLocaleString("id-ID")}`);
-      }, 100);
+      setCheckoutSuccessData({
+        total: currentTotal,
+        itemsCount: currentCart.reduce((acc, c) => acc + c.qty, 0),
+        timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        branchId: p.branchId
+      });
     } catch (e: any) {
       console.error("Checkout Error:", e);
       alert(e.message || "Gagal memproses transaksi.");
@@ -8583,9 +8587,213 @@ export default function App() {
         </div>
       </div>
     )}
+
+    {/* --- BRAND SUCCESS POPUP (PROFESSIONAL BILLING MODAL OVERLAY) --- */}
+    {checkoutSuccessData && (
+      <CheckoutSuccessModal
+        data={checkoutSuccessData}
+        onClose={() => setCheckoutSuccessData(null)}
+        branches={branches}
+      />
+    )}
     </>
   );
 }
+
+// Custom Premium Checkout Success Modal (Resolves URL Popup and introduces beautiful automatic Cash/Change Calculator)
+interface CheckoutSuccessModalProps {
+  data: {
+    total: number;
+    itemsCount: number;
+    timestamp: string;
+    branchId?: string;
+  };
+  onClose: () => void;
+  branches: any[];
+}
+
+const CheckoutSuccessModal = ({ data, onClose, branches }: CheckoutSuccessModalProps) => {
+  const [cashReceived, setCashReceived] = useState<number | null>(null);
+  const [customInput, setCustomInput] = useState<string>("");
+
+  const total = data.total;
+
+  const currentChange = useMemo(() => {
+    if (cashReceived === null) return null;
+    return cashReceived - total;
+  }, [cashReceived, total]);
+
+  // Quick cash shortcuts
+  const quickCashOptions = useMemo(() => {
+    const options = [total]; // Option 1: Exact amount
+    const standardBills = [5000, 10000, 20000, 50000, 100000];
+    
+    // Add other standard bills that are greater than total
+    standardBills.forEach((bill) => {
+      if (bill > total && !options.includes(bill)) {
+        options.push(bill);
+      }
+    });
+
+    // Also include combination if total is close
+    const doubleBill = Math.ceil(total / 50000) * 50000;
+    if (doubleBill > total && !options.includes(doubleBill)) {
+      options.push(doubleBill);
+    }
+
+    const doubleFifty = Math.ceil(total / 100000) * 100000;
+    if (doubleFifty > total && !options.includes(doubleFifty)) {
+      options.push(doubleFifty);
+    }
+    
+    return options.sort((a, b) => a - b).slice(0, 5); // Max 5 choices
+  }, [total]);
+
+  const handleCustomInputChange = (val: string) => {
+    const numericStr = val.replace(/\D/g, "");
+    setCustomInput(numericStr ? parseInt(numericStr).toLocaleString("id-ID") : "");
+    const cleaned = parseInt(numericStr);
+    if (!isNaN(cleaned)) {
+      setCashReceived(cleaned);
+    } else {
+      setCashReceived(null);
+    }
+  };
+
+  const selectShortcut = (amt: number) => {
+    setCashReceived(amt);
+    setCustomInput(amt.toLocaleString("id-ID"));
+  };
+
+  const branchName = useMemo(() => {
+    return branches.find(b => b.id === data.branchId)?.name || "Pusat";
+  }, [branches, data.branchId]);
+
+  return (
+    <div className="fixed inset-0 z-[5000] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-sm rounded-[32px] md:rounded-[40px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200 relative">
+        
+        {/* Animated Green Check Header */}
+        <div className="p-6 text-center bg-emerald-50/60 border-b border-slate-100 relative overflow-hidden flex flex-col items-center">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-100/40 rounded-full blur-xl -translate-y-4 translate-x-4"></div>
+          
+          <div className="relative w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mb-4 shadow-xl shadow-emerald-200/50 animate-bounce">
+            <Check className="w-7 h-7 text-white stroke-[3.5]" />
+          </div>
+          
+          <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[9px] font-black uppercase tracking-widest mb-1.5 shadow-sm">
+            Pembayaran Berhasil
+          </span>
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter antialiased">
+            Transaksi Disimpan
+          </h3>
+          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">
+            Mencetak Nota & Update Cloud Selesai
+          </p>
+        </div>
+
+        {/* Details & Live Change Calculator */}
+        <div className="p-5 md:p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-3xl border border-slate-100">
+            <div className="text-left">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                Waktu Transaksi
+              </p>
+              <p className="text-[11px] font-black text-slate-700 mt-1 uppercase tracking-tight">
+                Hari ini, {data.timestamp}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                Lokasi / Cabang
+              </p>
+              <p className="text-[11px] font-black text-slate-700 mt-1 uppercase tracking-tight truncate">
+                {branchName}
+              </p>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+              TOTAL TRANSAKSI
+            </p>
+            <p className="text-3xl md:text-3xl font-black text-blue-900 tracking-tighter">
+              Rp {total.toLocaleString("id-ID")}
+            </p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+              {data.itemsCount} Pcs Produk Terjual
+            </p>
+          </div>
+
+          {/* Payment Calculator Section */}
+          <div className="bg-slate-50/70 p-4 rounded-[28px] border border-slate-200 space-y-3">
+            <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] text-center">
+              KALKULATOR KEMBALIAN PELANGGAN
+            </h4>
+
+            {/* Input Uang Diterima */}
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-sm">
+                Rp
+              </span>
+              <input
+                type="text"
+                placeholder="Masukkan jumlah uang tunai..."
+                value={customInput}
+                onChange={(e) => handleCustomInputChange(e.target.value)}
+                className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-2xl pl-10 pr-4 py-2.5 text-xs font-black tracking-tight text-slate-800 outline-none transition-all shadow-inner placeholder:text-slate-300 placeholder:font-bold"
+              />
+            </div>
+
+            {/* Quick Cash Buttons */}
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {quickCashOptions.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => selectShortcut(opt)}
+                  className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 border ${
+                    cashReceived === opt
+                      ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  {opt === total ? "Uang Pas" : `Rp ${opt.toLocaleString("id-ID")}`}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Change (Uang Kembali) Screen */}
+            {cashReceived !== null && (
+              <div className="pt-2 border-t border-slate-200/50">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                    Kembalian:
+                  </span>
+                  <span className={`text-sm font-black tracking-tight ${currentChange && currentChange < 0 ? "text-red-500 animate-pulse" : "text-emerald-600"}`}>
+                    {currentChange !== null && currentChange < 0
+                      ? `Kurang Rp ${Math.abs(currentChange).toLocaleString("id-ID")}`
+                      : `Rp ${(currentChange || 0).toLocaleString("id-ID")}`}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer actions */}
+        <div className="p-5 md:p-6 bg-slate-50 border-t border-slate-100 text-center">
+          <button
+            onClick={onClose}
+            className="w-full bg-slate-900 text-white py-3.5 rounded-[28px] font-black text-[9px] uppercase tracking-[0.25em] shadow-xl hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer animate-pulse"
+          >
+            Selesai & Transaksi Baru
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Helpers
 const MenuCategory = ({ title }: { title: string }) => (
