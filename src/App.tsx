@@ -1724,23 +1724,29 @@ export default function App() {
     sales.forEach((s) => {
       if (s.branchId !== branchId || s.status === "refunded") return;
       (s.items || []).forEach((item: any) => {
-        if (!itemStats[item.id]) {
-          const product = branchProducts.find((p) => p.id === item.id);
+        const pId = item.productId || item.id;
+        if (!pId) return;
+        if (!itemStats[pId]) {
+          const product = branchProducts.find((p) => p.id === pId);
           if (!product) return;
-          itemStats[item.id] = { qty: 0, product };
+          itemStats[pId] = { qty: 0, product };
         }
-        if (itemStats[item.id]) {
-          itemStats[item.id].qty += item.qty;
+        if (itemStats[pId]) {
+          itemStats[pId].qty += (item.qty || 0);
         }
       });
     });
 
     const sorted = Object.values(itemStats)
       .sort((a, b) => b.qty - a.qty)
-      .map((entry) => entry.product);
+      .map((entry) => ({
+        ...entry.product,
+        salesCount: entry.qty
+      }));
 
     const existingIds = new Set(sorted.map((p) => p.id));
     const unsorted = branchProducts.filter(p => !existingIds.has(p.id))
+      .map(p => ({ ...p, salesCount: 0 }))
       .sort((a, b) => {
         const getPrice = (px: any) => px.discountPrice > 0 ? px.discountPrice : px.sellingPrice;
         return getPrice(a) - getPrice(b);
@@ -6909,7 +6915,8 @@ export default function App() {
                                         <div className="min-w-0 flex-1 flex flex-col justify-between text-left">
                                           <p className="text-[9.5px] font-black uppercase text-slate-800 leading-tight">
                                             {getProductName(p)}
-                                            {p.masterSN && <span className="block text-[7px] text-blue-500 font-bold mt-0.5">SN: ${p.masterSN}</span>}
+                                            {p.salesCount > 0 && <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-500 text-white text-[7px] rounded font-black tracking-widest uppercase animate-pulse">🔥 Terlaris ({p.salesCount})</span>}
+                                            {p.masterSN && <span className="block text-[7px] text-blue-500 font-bold mt-0.5">SN: {p.masterSN}</span>}
                                           </p>
                                           <div className="flex items-center justify-between mt-1">
                                              <p className="text-[9px] font-bold text-blue-600">
