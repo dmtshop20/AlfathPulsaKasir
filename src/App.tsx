@@ -51,6 +51,7 @@ import {
   Sparkles,
   Box,
   Database,
+  Edit,
   Lock,
   Activity,
   LayoutGrid,
@@ -641,6 +642,52 @@ export default function App() {
       }
     }
     return displayName;
+  };
+
+  const getShiftTypePref = (type?: string) => {
+    if (!type) return "";
+    if (type.includes(" - ")) return type.split(" - ")[0];
+    return type;
+  };
+
+  const getShiftKeeperName = (sh: any) => {
+    if (!sh) return "Kasir";
+    if (sh.shiftType && sh.shiftType.includes(" - ")) return sh.shiftType.split(" - ")[1];
+    return sh.cashier?.name || "Kasir";
+  };
+
+  const getSaleCashierName = (sale: any) => {
+    if (!sale) return "Kasir";
+    if (sale.cashierName) return sale.cashierName;
+    if (!sale.createdAt) return sale.cashier?.name || "Kasir";
+    
+    const saleTime = new Date(sale.createdAt).getTime();
+    const activeShift = shifts.find((sh: any) => {
+      if (sh.branchId !== sale.branchId) return false;
+      const openTime = new Date(sh.openTime).getTime();
+      const closeTime = sh.closeTime ? new Date(sh.closeTime).getTime() : Date.now() + 60000;
+      return saleTime >= openTime && saleTime <= closeTime;
+    });
+    if (activeShift) {
+      return getShiftKeeperName(activeShift);
+    }
+    return sale.cashier?.name || "Kasir";
+  };
+
+  const getCommissionCashierName = (comm: any) => {
+    if (!comm) return "Karyawan";
+    if (comm.cashierName) return comm.cashierName;
+    const commTime = new Date(comm.createdAt).getTime();
+    const activeShift = shifts.find((sh: any) => {
+      if (sh.branchId !== comm.branchId) return false;
+      const openTime = new Date(sh.openTime).getTime();
+      const closeTime = sh.closeTime ? new Date(sh.closeTime).getTime() : Date.now() + 60000;
+      return commTime >= openTime && commTime <= closeTime;
+    });
+    if (activeShift) {
+      return getShiftKeeperName(activeShift);
+    }
+    return comm.cashier?.name || "Karyawan";
   };
 
   useEffect(() => {
@@ -2073,7 +2120,7 @@ export default function App() {
         cashierId: profile.id, // profile.id not uid
         initialCash: drawerCashValue,
         shiftDate: activeLogicalDate,
-        shiftType: shiftType
+        shiftType: `${shiftType} - ${cashierName.trim() || profile?.name || "Kasir"}`
       });
       localStorage.setItem("current_shift_id", shift.id);
     } catch (e) {
@@ -3242,12 +3289,14 @@ export default function App() {
                                   const bId = s.branchId || "center";
                                   if (!grouped[date]) grouped[date] = {};
                                   if (!grouped[date][bId]) grouped[date][bId] = { pagi: { val: 0, kasir: "" }, malam: { val: 0, kasir: "" } };
-                                  if (s.shiftType === "Pagi") {
+                                  const sType = getShiftTypePref(s.shiftType);
+                                  const sKeeper = getShiftKeeperName(s);
+                                  if (sType === "Pagi") {
                                     grouped[date][bId].pagi.val += (s.totalSales || 0);
-                                    grouped[date][bId].pagi.kasir = s.cashierName;
+                                    grouped[date][bId].pagi.kasir = sKeeper;
                                   } else {
                                     grouped[date][bId].malam.val += (s.totalSales || 0);
-                                    grouped[date][bId].malam.kasir = s.cashierName;
+                                    grouped[date][bId].malam.kasir = sKeeper;
                                   }
                                 });
 
@@ -3310,12 +3359,14 @@ export default function App() {
                                     const bId = s.branchId || "center";
                                     if (!grouped[date]) grouped[date] = {};
                                     if (!grouped[date][bId]) grouped[date][bId] = { pagi: { val: 0, kasir: "" }, malam: { val: 0, kasir: "" } };
-                                    if (s.shiftType === "Pagi") {
+                                    const sType = getShiftTypePref(s.shiftType);
+                                    const sKeeper = getShiftKeeperName(s);
+                                    if (sType === "Pagi") {
                                       grouped[date][bId].pagi.val += (s.totalSales || 0);
-                                      grouped[date][bId].pagi.kasir = s.cashierName;
+                                      grouped[date][bId].pagi.kasir = sKeeper;
                                     } else {
                                       grouped[date][bId].malam.val += (s.totalSales || 0);
-                                      grouped[date][bId].malam.kasir = s.cashierName;
+                                      grouped[date][bId].malam.kasir = sKeeper;
                                     }
                                   });
 
@@ -3423,9 +3474,11 @@ export default function App() {
                                       </p>
                                     </td>
                                     <td className="px-6 py-4">
-                                      <p className="text-[10px] font-black text-slate-800 uppercase leading-tight">{sh.cashierName}</p>
+                                      <p className="text-[10px] font-black text-slate-800 uppercase leading-tight">
+                                        {sh.shiftType && sh.shiftType.includes(" - ") ? sh.shiftType.split(" - ")[1] : sh.cashier?.name || "Kasir"}
+                                      </p>
                                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                        {branches.find(b => b.id === sh.branchId)?.name || "Pusat"} | {sh.shiftType}
+                                        {branches.find(b => b.id === sh.branchId)?.name || "Pusat"} | {sh.shiftType && sh.shiftType.includes(" - ") ? sh.shiftType.split(" - ")[0] : sh.shiftType}
                                       </p>
                                     </td>
                                     <td className="px-6 py-4 text-right font-black text-slate-400 text-[10px]">
@@ -3584,9 +3637,45 @@ export default function App() {
                                 {idx + 1}
                               </div>
                               <div>
-                                <h4 className="font-bold text-slate-800">
-                                  {b.name}
-                                </h4>
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="font-bold text-slate-800">
+                                    {b.name}
+                                  </h4>
+                                  <button
+                                    onClick={async () => {
+                                      const newName = prompt(`Ubah Nama Cabang "${b.name}" menjadi:`, b.name);
+                                      if (newName === null) return;
+                                      const trimmed = newName.trim();
+                                      if (!trimmed) return alert("Nama cabang tidak boleh kosong!");
+                                      try {
+                                        const res = await fetch(`/api/branches/${b.id}`, {
+                                          method: "PATCH",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                            Authorization: `Bearer ${localStorage.getItem("token")}`,
+                                          },
+                                          body: JSON.stringify({ name: trimmed }),
+                                        });
+                                        if (!res.ok) {
+                                          const errData = await res.json().catch(() => ({}));
+                                          throw new Error(errData.error || "Gagal mengubah nama cabang");
+                                        }
+                                        const bData = await api.getBranches();
+                                        setBranches(
+                                          bData.sort((a: any, b: any) =>
+                                            (a.name || "").localeCompare(b.name || "")
+                                          )
+                                        );
+                                      } catch (err: any) {
+                                        alert(err.message || "Gagal mengubah nama cabang");
+                                      }
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                    title="Ubah Nama Cabang"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                                 <p className="text-[10px] text-slate-400 font-mono">
                                   ID: {b.id}
                                 </p>
@@ -3641,7 +3730,7 @@ export default function App() {
                                   onClick={async () => {
                                     if (b.id === "default-branch-id") {
                                       alert(
-                                        `PERINGATAN: "${b.name}" adalah Cabang Sistem Utama bawaan (seed) yang tertaut dengan akun 'admin' dan 'cashier' default.\n\nSangat disarankan untuk mengubah NAMA cabang ini di database (atau rename) daripada menghapusnya.\n\nSetiap kali web restart, Cabang Sistem Utama ini akan otomatis dibuat kembali jika tidak ada.`
+                                        `PERINGATAN: "${b.name}" adalah Cabang Sistem Utama bawaan (seed) yang tertaut dengan akun 'admin' and 'cashier' default.\n\nSangat disarankan untuk mengubah NAMA cabang ini di database (atau rename) daripada menghapusnya.\n\nSetiap kali web restart, Cabang Sistem Utama ini akan otomatis dibuat kembali jika tidak ada.`
                                       );
                                       return;
                                     }
@@ -3651,7 +3740,7 @@ export default function App() {
                                       )
                                     ) {
                                       try {
-                                        await fetch(`/api/branches/${b.id}`, {
+                                        const res = await fetch(`/api/branches/${b.id}`, {
                                           method: "DELETE",
                                           headers: {
                                             Authorization: `Bearer ${localStorage.getItem(
@@ -3659,6 +3748,10 @@ export default function App() {
                                             )}`,
                                           },
                                         });
+                                        if (!res.ok) {
+                                          const errData = await res.json().catch(() => ({}));
+                                          throw new Error(errData.error || "Gagal menghapus cabang");
+                                        }
                                         const bData = await api.getBranches();
                                         setBranches(
                                           bData.sort((a: any, b: any) =>
@@ -3667,7 +3760,8 @@ export default function App() {
                                             ),
                                           ),
                                         );
-                                      } catch (e) {
+                                      } catch (e: any) {
+                                        alert(e.message || "Gagal menghapus cabang");
                                         console.error(e);
                                       }
                                     }
@@ -7669,7 +7763,7 @@ export default function App() {
                                     {getProductName(c.product, c.productName)}
                                   </p>
                                   <p className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">
-                                    {users.find(u => u.id === c.cashierId)?.name || c.cashierName || "Karyawan"} • {c.createdAt ? new Date(c.createdAt).toLocaleDateString("id-ID") : "-"}
+                                    {getCommissionCashierName(c)} • {c.createdAt ? new Date(c.createdAt).toLocaleDateString("id-ID") : "-"}
                                   </p>
                                 </div>
                                 <div className="text-right">
@@ -7972,7 +8066,7 @@ export default function App() {
                                   </span>
                                 </div>
                                 <div className="text-[8px] text-slate-400 font-bold uppercase tracking-tight flex flex-wrap gap-1 leading-none">
-                                  <span>Kasir: {sale.cashier?.name || cashierName}</span>
+                                  <span>Kasir: {getSaleCashierName(sale)}</span>
                                   <span>• {sale.items?.length || 0} Item</span>
                                 </div>
                                 <div className="text-[9px] text-slate-600 font-medium">
@@ -8393,7 +8487,7 @@ export default function App() {
                                     {branches.find((b) => b.id === s.branchId)?.name || "Pusat"}
                                   </td>
                                   <td className="px-4 py-3 font-bold text-blue-600 uppercase tracking-tight truncate max-w-[80px]">
-                                    {s.cashier?.name || s.cashierName || "Sistem"}
+                                    {getSaleCashierName(s)}
                                   </td>
                                   <td className="px-4 py-3">
                                     <div className="truncate max-w-[150px]">

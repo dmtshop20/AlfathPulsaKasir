@@ -319,6 +319,17 @@ app.delete("/api/branches/:id", authenticateToken, async (req, res) => {
   if ((req as any).user.role !== "ADMIN") return res.status(403).json({ error: "Forbidden" });
   const branchId = req.params.id;
   try {
+    // Check if branch has any transactions to prevent deleting active branches
+    const salesCount = await prisma.sale.count({ where: { branchId } });
+    const shiftsCount = await prisma.shift.count({ where: { branchId } });
+    const adjustmentsCount = await prisma.adjustment.count({ where: { branchId } });
+
+    if (salesCount > 0 || shiftsCount > 0 || adjustmentsCount > 0) {
+      return res.status(400).json({ 
+        error: "Cabang tidak dapat dihapus karena sudah memiliki transaksi operasional (penjualan, shift, atau adjustment)." 
+      });
+    }
+
     await prisma.$transaction(async (tx) => {
       // Cleanup all transaction data for this branch (Uji Coba Mode)
       // Delete in order to satisfy FK constraints
