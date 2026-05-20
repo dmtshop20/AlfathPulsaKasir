@@ -8301,8 +8301,13 @@ export default function App() {
                               const productSales: Record<string, { name: string, qty: number }> = {};
                               sales.filter(s => s.status !== "refunded").forEach(s => {
                                 s.items?.forEach((it: any) => {
-                                  if (!productSales[it.id]) productSales[it.id] = { name: it.name, qty: 0 };
-                                  productSales[it.id].qty += it.qty;
+                                  const pId = it.productId || it.product?.id || it.id;
+                                  if (!pId) return;
+                                  const pName = it.product?.name || it.name || "Produk";
+                                  if (!productSales[pId]) {
+                                    productSales[pId] = { name: pName, qty: 0 };
+                                  }
+                                  productSales[pId].qty += (it.qty || 0);
                                 });
                               });
                               return Object.values(productSales)
@@ -8310,7 +8315,7 @@ export default function App() {
                                 .slice(0, 5)
                                 .map((p, i) => (
                                   <div key={i} className="flex items-center justify-between border-b border-white/10 pb-2 last:border-0">
-                                    <span className="text-[10px] font-medium uppercase truncate w-32">{p.name}</span>
+                                    <span className="text-[10px] font-medium uppercase flex-1 pr-4 break-words py-0.5">{p.name}</span>
                                     <span className="text-[10px] font-black text-blue-400">{p.qty}x</span>
                                   </div>
                                 ));
