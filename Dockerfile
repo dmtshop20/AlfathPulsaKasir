@@ -1,12 +1,14 @@
-# Stage 1: Build the application
-FROM node:20-slim AS builder
+FROM node:20-slim
 
 WORKDIR /app
 
-# Copy package files
+# Install openssl (required by Prisma Client to connect with Supabase SSL)
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Copy package management files first to utilize Docker layer caching
 COPY package*.json ./
 
-# Copy prisma directory (needed for npm install / prisma generate in postinstall)
+# Copy prisma schema for generator
 COPY prisma ./prisma
 
 # Install all dependencies
@@ -15,27 +17,14 @@ RUN npm ci
 # Copy the rest of the application files
 COPY . .
 
-# Build the frontend and compiled server
+# Build the app (compiles react frontend and TS backend)
 RUN npm run build
 
-# Prune development dependencies to keep memory footprint ultra-lean
+# Prune devDependencies to keep container size ultra-lean before running
 RUN npm prune --production
-
-# Stage 2: Minimal runner stage
-FROM node:20-slim AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-# Copy built code and required engines/dependencies
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prisma ./prisma
 
 # Expose port 3000
 EXPOSE 3000
 
-# Run the app
+# Start the application
 CMD ["npm", "run", "start"]
