@@ -1241,6 +1241,44 @@ export default function App() {
         setAdjustments(aData);
         setDailySummaries(dsData || []);
         
+        // --- RESTORE OPEN SHIFT FROM DATABASE ---
+        if (profile?.branchId) {
+          const openShift = shData.find((s: any) => s.status === "open" && s.branchId === profile?.branchId);
+          
+          if (openShift) {
+             setShiftOpen(true);
+             const type = openShift.shiftType || "Pagi";
+             let parsedType = type;
+             let parsedName = openShift.cashier?.name || "Kasir";
+             if (type.includes(" - ")) {
+                 const parts = type.split(" - ");
+                 parsedType = parts[0];
+                 parsedName = parts[1];
+             }
+             setShiftType(parsedType as any);
+             setCashierName(parsedName);
+             setShiftStartTime(openShift.openTime);
+             setShiftLogicalDate(openShift.shiftDate);
+             
+             localStorage.setItem("shift_open", "true");
+             localStorage.setItem("current_shift_id", openShift.id);
+             localStorage.setItem("shift_type", parsedType);
+             localStorage.setItem("cashier_name", parsedName);
+             localStorage.setItem("shift_start_time", openShift.openTime);
+             localStorage.setItem("shift_logical_date", openShift.shiftDate);
+          } else {
+             // Jika di lokal buka pencatuman, tapi di DB sudah tutup/hapus, maka sinkronisasi paksa
+             if (localStorage.getItem("shift_open") === "true") {
+                 setShiftOpen(false);
+                 setCashierName("");
+                 setShiftType(null);
+                 setShiftStartTime(null);
+                 localStorage.removeItem("shift_open");
+                 localStorage.removeItem("current_shift_id");
+             }
+          }
+        }
+        
         // Also sync commission summaries
         if (isAdmin) {
           syncCommissionsSummary(); // Get global summary for owner
@@ -1653,6 +1691,12 @@ export default function App() {
   };
 
   const addToCart = (product: any) => {
+    if (!shiftOpen) {
+      alert("Shift belum dibuka! Harap Buka Shift terlebih dahulu sebelum melayani transaksi.");
+      setActiveMenu("shift");
+      return;
+    }
+
     const availableStock = getBranchStock(profile?.branchId || "", product.id);
     setCart((prev) => {
       const exists = prev.find(
