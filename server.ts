@@ -1053,13 +1053,17 @@ app.get("/api/daily-summaries", authenticateToken, async (req, res) => {
 });
 
 function getLogicalShiftDate(d: Date = new Date()) {
-  const date = new Date(d);
-  if (date.getHours() < 6) {
-    date.setDate(date.getDate() - 1);
+  const wibTime = d.getTime() + (7 * 60 * 60 * 1000);
+  const wibDate = new Date(wibTime);
+  
+  if (wibDate.getUTCHours() < 6) {
+    wibDate.setUTCDate(wibDate.getUTCDate() - 1);
   }
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  
+  const year = wibDate.getUTCFullYear();
+  const month = String(wibDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(wibDate.getUTCDate()).padStart(2, '0');
+  
   return `${year}-${month}-${day}`;
 }
 

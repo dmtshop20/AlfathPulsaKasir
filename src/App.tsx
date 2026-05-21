@@ -2143,6 +2143,12 @@ export default function App() {
         timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         branchId: p.branchId
       });
+      
+      setGlobalAlerts(prev => [...prev, { 
+        id: Date.now().toString(), 
+        message: "Pembayaran Berhasil!", 
+        type: "success" 
+      }]);
     } catch (e: any) {
       console.error("Checkout Error:", e);
       alert(e.message || "Gagal memproses transaksi.");
@@ -8963,13 +8969,13 @@ export default function App() {
       {globalAlerts.map((alert) => (
         <div
           key={alert.id}
-          className="pointer-events-auto bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/50 p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in slide-in-from-top-4 duration-300 relative border-l-4 border-l-amber-500"
+          className={`pointer-events-auto bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/50 p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in slide-in-from-top-4 duration-300 relative border-l-4 ${alert.type === 'success' ? 'border-l-emerald-500' : 'border-l-amber-500'}`}
         >
-          <div className="w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+          <div className={`w-5 h-5 rounded-full ${alert.type === 'success' ? 'bg-emerald-500/15' : 'bg-amber-500/15'} flex items-center justify-center shrink-0 mt-0.5`}>
+            {alert.type === 'success' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Informasi Sistem</p>
+            <p className={`text-[10px] font-black uppercase ${alert.type === 'success' ? 'text-emerald-500' : 'text-amber-500'} tracking-widest`}>{alert.type === 'success' ? 'Berhasil' : 'Informasi Sistem'}</p>
             <p className="text-[11px] font-bold text-slate-100 mt-0.5 leading-relaxed break-words">{alert.message}</p>
           </div>
           <button
