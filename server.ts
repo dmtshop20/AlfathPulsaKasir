@@ -404,7 +404,7 @@ app.patch("/api/config", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/sales", authenticateToken, async (req, res) => {
+app.post("/api/transactions", authenticateToken, async (req, res) => {
   const { branchId, cashierId, items, customerName, total, totalCommission } = req.body;
   const actualCashierId = cashierId || (req as any).user.userId;
   const actualBranchId = branchId || (req as any).user.branchId;
@@ -514,7 +514,7 @@ app.post("/api/sales", authenticateToken, async (req, res) => {
   }
 });
 
-app.get("/api/sales", authenticateToken, async (req, res) => {
+app.get("/api/transactions", authenticateToken, async (req, res) => {
   const { branchId, startDate, endDate } = req.query;
   try {
     const where: any = {};
@@ -564,7 +564,7 @@ app.get("/api/sales", authenticateToken, async (req, res) => {
   }
 });
 
-app.get("/api/commissions", authenticateToken, async (req, res) => {
+app.get("/api/incentives", authenticateToken, async (req, res) => {
   const { cashierId, branchId } = req.query;
   try {
     const where: any = {};
@@ -844,7 +844,7 @@ app.delete("/api/users/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/sales/:id/refund", authenticateToken, async (req, res) => {
+app.post("/api/transactions/:id/refund", authenticateToken, async (req, res) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findUnique({
@@ -905,7 +905,7 @@ app.post("/api/sales/:id/refund", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/commissions/withdraw", authenticateToken, async (req, res) => {
+app.post("/api/incentives/withdraw", authenticateToken, async (req, res) => {
   const { branchId } = req.body;
   try {
     const result = await prisma.commission.updateMany({
@@ -924,7 +924,7 @@ app.post("/api/commissions/withdraw", authenticateToken, async (req, res) => {
   }
 });
 
-app.get("/api/commissions/summary", authenticateToken, async (req, res) => {
+app.get("/api/incentives/summary", authenticateToken, async (req, res) => {
   const { branchId } = req.query;
   try {
     const where: any = { status: "earned" };

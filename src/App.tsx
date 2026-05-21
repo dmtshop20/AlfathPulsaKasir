@@ -2025,6 +2025,34 @@ export default function App() {
 
   const handleCheckout = async () => {
     const p = profile;
+
+    if (!shiftOpen) {
+      alert("Shift belum dibuka! Harap Buka Shift terlebih dahulu.");
+      return;
+    }
+
+    if (shiftOpen && shiftType) {
+      const nowHour = new Date().getHours();
+      let isOverdue = false;
+      let cleanedShiftType = shiftType;
+      // Handle the case where shiftType is combined with name (e.g., "Pagi - Budi")
+      if (typeof shiftType === 'string' && shiftType.includes(" - ")) {
+          cleanedShiftType = shiftType.split(" - ")[0] as any;
+      }
+
+      if (cleanedShiftType === "Pagi" && (nowHour >= 19 || nowHour < 7)) {
+          isOverdue = true;
+      } else if (cleanedShiftType === "Malam" && (nowHour >= 7 && nowHour < 19)) {
+          isOverdue = true;
+      }
+
+      if (isOverdue) {
+          if (!window.confirm(`Waktu shift ${cleanedShiftType} telah berakhir. Transaksi akan tetap masuk ke shift aktif saat ini, namun disarankan untuk segera tutup shift. Lanjut Transaksi?`)) {
+              return;
+          }
+      }
+    }
+
     if (cart.length === 0 || !p?.branchId || isProcessingCheckout) return;
 
     setIsProcessingCheckout(true);

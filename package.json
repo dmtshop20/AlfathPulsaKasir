@@ -10,7 +10,7 @@
     "dev": "tsx server.ts",
     "postinstall": "prisma generate",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
+    "start": "NODE_ENV=production node dist/server.cjs",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "clean": "rm -rf dist",

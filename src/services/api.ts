@@ -151,7 +151,7 @@ export const api = {
   },
 
   async createSale(data: any) {
-    const res = await fetch(`${BASE_URL}/sales`, {
+    const res = await fetch(`${BASE_URL}/transactions`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify(data),
@@ -162,7 +162,7 @@ export const api = {
 
   async getSales(params: any = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${BASE_URL}/sales?${query}`, {
+    const res = await fetch(`${BASE_URL}/transactions?${query}`, {
       headers: getHeaders(),
     });
     if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch sales: ${res.status} ${txt}`); }
@@ -171,7 +171,7 @@ export const api = {
 
   async getCommissions(params: any = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${BASE_URL}/commissions?${query}`, {
+    const res = await fetch(`${BASE_URL}/incentives?${query}`, {
       headers: getHeaders(),
     });
     if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch commissions: ${res.status} ${txt}`); }
@@ -243,7 +243,7 @@ export const api = {
   },
   
   async refundSale(id: string) {
-    const res = await fetch(`${BASE_URL}/sales/${id}/refund`, {
+    const res = await fetch(`${BASE_URL}/transactions/${id}/refund`, {
       method: "POST",
       headers: getHeaders(),
     });
@@ -255,7 +255,7 @@ export const api = {
   },
 
   async withdrawCommission(branchId: string) {
-    const res = await fetch(`${BASE_URL}/commissions/withdraw`, {
+    const res = await fetch(`${BASE_URL}/incentives/withdraw`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify({ branchId }),
@@ -267,7 +267,7 @@ export const api = {
   async getCommissionSummary(branchId?: string) {
     const params = new URLSearchParams();
     if (branchId) params.append("branchId", branchId);
-    const res = await fetch(`${BASE_URL}/commissions/summary?${params.toString()}`, {
+    const res = await fetch(`${BASE_URL}/incentives/summary?${params.toString()}`, {
         headers: getHeaders(),
     });
     if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch commission summary: ${res.status} ${txt}`); }
