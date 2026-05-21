@@ -598,6 +598,23 @@ export default function App() {
     }
   });
   const [isOnline, setIsOnline] = useState(true);
+
+  const bestSellers = useMemo(() => {
+    const salesMap = new Map<string, number>();
+    sales.filter(s => s.status !== "refunded").forEach(s => {
+      s.items?.forEach((it: any) => {
+        salesMap.set(it.productId, (salesMap.get(it.productId) || 0) + it.qty);
+      });
+    });
+
+    return products
+      .filter(p => !p.visibleBranchIds || p.visibleBranchIds === "*" || (profile?.branchId && p.visibleBranchIds.split(",").map((id: string) => id.trim()).includes(profile.branchId)))
+      .map(p => ({ ...p, totalSold: salesMap.get(p.id) || 0 }))
+      .filter(p => p.totalSold > 0)
+      .sort((a, b) => b.totalSold - a.totalSold)
+      .slice(0, 6)
+      .sort((a, b) => a.sellingPrice - b.sellingPrice);
+  }, [products, sales, profile?.branchId]);
   const [showShiftSummary, setShowShiftSummary] = useState<number | null>(null);
   const [actualCashInput, setActualCashInput] = useState<string>("");
   const [checkoutSuccessData, setCheckoutSuccessData] = useState<{ total: number; itemsCount: number; timestamp: string; branchId?: string } | null>(null);
@@ -1137,7 +1154,7 @@ export default function App() {
       const { user: userData } = await api.login(credentials);
       setProfile(userData);
       const [bData, pData] = await Promise.all([api.getBranches(), api.getProducts()]);
-      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
+      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: 'base' })));
       setProducts(pData);
       if (userData.role === "ADMIN") setActiveMenu("dashboard");
       else if (userData.role === "AUDIT") setActiveMenu("audit");
@@ -1157,7 +1174,7 @@ export default function App() {
       const { user: userData } = await api.loginWithGoogle(idToken);
       setProfile(userData);
       const [bData, pData] = await Promise.all([api.getBranches(), api.getProducts()]);
-      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
+      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: 'base' })));
       setProducts(pData);
       if (userData.role === "ADMIN") setActiveMenu("dashboard");
       else if (userData.role === "AUDIT") setActiveMenu("audit");
@@ -1459,7 +1476,7 @@ export default function App() {
       });
       setNewBranch("");
       const bData = await api.getBranches();
-      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
+      setBranches(bData.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: 'base' })));
     } catch(err) {
       console.error(err);
     }
@@ -6762,6 +6779,25 @@ export default function App() {
                             </div>
                           )}
                         </div>
+
+                        {/* 1.5 PANEL PRODUK TERLARIS */}
+                        {bestSellers.length > 0 && (
+                          <div className="bg-white p-3 border-b border-slate-150">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Produk Terlaris (Klik untuk Tambah)</p>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                              {bestSellers.map(p => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => addToCart(p)}
+                                  className="flex-shrink-0 bg-slate-50 border border-slate-200 p-2 rounded-lg text-left w-32 hover:border-emerald-300 hover:bg-emerald-50 transition-all font-black"
+                                >
+                                  <p className="text-[10px] uppercase text-slate-800 truncate mb-1">{getProductName(p)}</p>
+                                  <p className="text-[10px] text-emerald-600 font-mono">Rp {p.sellingPrice.toLocaleString("id-ID")}</p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* 2. CAPSULE SCROLL BAR KATEGORI (INTERAKTIF & INDAH) */}
                         <div className="bg-white px-3 py-2 border-b border-slate-200/60 shrink-0 flex gap-1.5 overflow-x-auto no-scrollbar scroll-smooth items-center">
