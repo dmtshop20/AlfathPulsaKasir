@@ -991,7 +991,7 @@ app.get("/api/daily-summaries", authenticateToken, async (req, res) => {
     }> = {};
 
     for (const sale of activeSales) {
-      const dateStr = getLogicalShiftDate(sale.createdAt);
+      const dateStr = getSaleShiftDate(sale);
       const key = `${sale.branchId}_${dateStr}`;
       
       if (!activeGrouped[key]) {
@@ -1067,6 +1067,14 @@ function getLogicalShiftDate(d: Date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function getSaleShiftDate(sale: { createdAt: Date; customerName?: string | null }) {
+  if (sale.customerName && sale.customerName.startsWith("SD:")) {
+    const parts = sale.customerName.split("|");
+    return parts[0].substring(3); // Extracts YYYY-MM-DD
+  }
+  return getLogicalShiftDate(sale.createdAt);
+}
+
 async function autoArchiveOldSales() {
   try {
     const date30DaysAgo = new Date();
@@ -1090,7 +1098,7 @@ async function autoArchiveOldSales() {
     }> = {};
 
     for (const sale of oldSales) {
-      const logicalDate = getLogicalShiftDate(sale.createdAt);
+      const logicalDate = getSaleShiftDate(sale);
       const key = `${sale.branchId}_${logicalDate}`;
       
       if (!groups[key]) {

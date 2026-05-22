@@ -2043,7 +2043,7 @@ export default function App() {
         const summaries: Record<string, { revenue: number; profit: number; commissions: number; count: number; branchId: string; date: string }> = {};
         
         salesToProcess.forEach(s => {
-            const dayKey = (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt))).replace(/\//g, "-");
+            const dayKey = getSaleShiftDate(s).replace(/\//g, "-");
             const summaryId = `${s.branchId}_${dayKey}`;
             
             if (!summaries[summaryId]) {
@@ -2137,13 +2137,15 @@ export default function App() {
         };
       });
 
+      const activeShiftDate = (shiftOpen && shiftLogicalDate) ? shiftLogicalDate : getLogicalShiftDate();
+
       await api.createSale({
         branchId: p.branchId,
         cashierId: p.id,
         items,
         total: currentTotal,
         totalCommission,
-        customerName: "" // Optional
+        customerName: `SD:${activeShiftDate}`
       });
 
       // Clear Cart
@@ -2182,6 +2184,25 @@ export default function App() {
     }
     // Return YYYY-MM-DD in LOCAL time
     return formatDateLocal(date);
+  };
+
+  const getSaleShiftDate = (s: any) => {
+    if (!s) return "";
+    if (s.shiftDate) return s.shiftDate;
+    if (s.customerName && s.customerName.startsWith("SD:")) {
+      const parts = s.customerName.split("|");
+      return parts[0].substring(3);
+    }
+    return getLogicalShiftDate(new Date(s.createdAt || s.timestamp || 0));
+  };
+
+  const getCustomerDisplayName = (customerName?: string | null) => {
+    if (!customerName) return "Pelanggan Biasa";
+    if (customerName.startsWith("SD:")) {
+      const parts = customerName.split("|");
+      return parts[1] || "Pelanggan Biasa";
+    }
+    return customerName;
   };
 
   const handleOpenShift = async () => {
@@ -3254,7 +3275,7 @@ export default function App() {
                           ].map((day) => {
                             const logical = getLogicalShiftDate(day.date);
                             const stats = sales.filter(s => 
-                              (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt || s.timestamp || 0))) === logical &&
+                              getSaleShiftDate(s) === logical &&
                               (!adminSalesBranchFilter || s.branchId === adminSalesBranchFilter) &&
                               s.status !== "refunded"
                             ).reduce((acc, s) => {
@@ -3287,7 +3308,7 @@ export default function App() {
                           {["Pagi", "Malam"].map((type) => {
                             const filteredForType = sales.filter((s) => {
                               const physicalDate = new Date(s.createdAt || s.timestamp || 0);
-                              const saleLogicalStr = s.shiftDate || getLogicalShiftDate(physicalDate);
+                              const saleLogicalStr = getSaleShiftDate(s);
                               const saleLogicalDate = new Date(saleLogicalStr);
                               
                               const branchMatch = !adminSalesBranchFilter || s.branchId === adminSalesBranchFilter;
@@ -6621,7 +6642,7 @@ export default function App() {
                                 s.status !== "refunded" &&
                                 (shiftOpen && shiftStartTime
                                   ? new Date(s.createdAt || s.timestamp || 0).getTime() >= new Date(shiftStartTime).getTime()
-                                  : (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt || s.timestamp || 0))) === getLogicalShiftDate()),
+                                  : getSaleShiftDate(s) === getLogicalShiftDate()),
                             )
                             .reduce((acc, s) => acc + (s.total || 0), 0)
                             .toLocaleString("id-ID")}
@@ -7288,7 +7309,7 @@ export default function App() {
                                 s.branchId === profile.branchId &&
                                 (shiftOpen && shiftStartTime
                                   ? new Date(s.createdAt || s.timestamp || 0).getTime() >= new Date(shiftStartTime).getTime()
-                                  : (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt || s.timestamp || 0))) === (shiftLogicalDate || getLogicalShiftDate())),
+                                  : getSaleShiftDate(s) === (shiftLogicalDate || getLogicalShiftDate())),
                             )
                             .sort(
                               (a, b) =>
@@ -7406,7 +7427,7 @@ export default function App() {
                               s.branchId === profile.branchId &&
                               (shiftOpen && shiftStartTime
                                 ? new Date(s.createdAt || s.timestamp || 0).getTime() >= new Date(shiftStartTime).getTime()
-                                : (s.shiftDate || getLogicalShiftDate(new Date(s.createdAt || s.timestamp || 0))) === (shiftLogicalDate || getLogicalShiftDate())),
+                                : getSaleShiftDate(s) === (shiftLogicalDate || getLogicalShiftDate())),
                           ).length === 0 && (
                             <div className="py-12 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.2em] text-center w-full mx-auto">
                               Kosong
@@ -8201,7 +8222,7 @@ export default function App() {
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">
-                                    {sale.customerName || "Pelanggan Biasa"}
+                                    {getCustomerDisplayName(sale.customerName)}
                                   </span>
                                   <span className="text-[8px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded leading-none">
                                     {new Date(sale.createdAt || sale.timestamp || 0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
