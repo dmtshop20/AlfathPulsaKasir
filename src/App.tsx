@@ -486,6 +486,7 @@ export default function App() {
     | "cashier_stock"
     | "reports"
     | "incentive"
+    | "guide"
   >("dashboard");
   const [auditSidebarTab, setAuditSidebarTab] = useState<
     "incoming" | "disposal" | "transfer" | "logs"
@@ -3384,7 +3385,8 @@ export default function App() {
                             }
                             return branchMatch && dateMatch;
                           }).forEach(s => {
-                            if (s.shiftType === "Pagi") {
+                            const sType = getShiftTypePref(s.shiftType);
+                            if (sType === "Pagi") {
                               grandTotalPagi += (s.totalSales || 0);
                             } else {
                               grandTotalMalam += (s.totalSales || 0);
