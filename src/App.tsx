@@ -2451,6 +2451,8 @@ export default function App() {
         return "Daftar Belanja (Low Stock)";
       case "incentive":
         return "Bonus & Insentif Karyawan";
+      case "guide":
+        return "Buku Panduan & Keamanan Kerja";
       default:
         return String(activeMenu || "ALFATH PULSA").toUpperCase();
     }
@@ -2820,6 +2822,17 @@ export default function App() {
                 />
               </>
             )}
+
+            <MenuCategory title="Pusat Informasi" />
+            <MenuItem
+              icon={Info}
+              label="Panduan & Keamanan"
+              active={activeMenu === "guide"}
+              onClick={() => {
+                setActiveMenu("guide");
+                setIsSidebarOpen(false);
+              }}
+            />
           </nav>
 
           <div className="p-4 border-t border-slate-800 shrink-0 space-y-2">
@@ -8372,6 +8385,219 @@ export default function App() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* --- SYSTEM: PANDUAN & KEAMANAN MULTI-CABANG --- */}
+            {activeMenu === "guide" && (
+              <div className="flex-1 flex flex-col bg-slate-50 md:m-4 md:rounded shadow-sm border md:border-slate-200 overflow-y-auto custom-scrollbar p-3 md:p-6 text-left h-full">
+                {/* HERO BANNER & GREETING */}
+                <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl shadow-xl select-none mb-6 text-white text-left relative overflow-hidden">
+                  <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+                  
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 bg-blue-500/20 px-3 py-1 rounded-full text-blue-300 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Dokumen Resmi Operasional
+                      </div>
+                      <h1 className="text-xl md:text-3xl font-black tracking-tight leading-none uppercase">
+                        Sistem Panduan & Keamanan Stok
+                      </h1>
+                      <p className="text-slate-300 text-xs md:text-sm font-medium">
+                        Standard Operating Procedure (SOP) Manajemen Multi-Cabang ALFATH PULSA.
+                      </p>
+                    </div>
+                    <div className="p-4 bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-700 shrink-0 text-left md:text-right min-w-[200px] shadow-lg">
+                      <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Pemilik Utama (Owner)</p>
+                      <p className="text-sm font-black text-white uppercase tracking-tight mt-0.5 pointer-events-none">Ruly Agustian</p>
+                      <div className="h-px bg-slate-700 my-2" />
+                      <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase">Brand Distribusi</p>
+                      <p className="text-xs font-black text-blue-300 uppercase tracking-tight mt-0.5">ALFATH PULSA</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BENTO GRID SECTIONS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8">
+                  
+                  {/* SECTION 1: TRANSFER STOK */}
+                  <div className="bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-md hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-3.5 mb-4 text-left">
+                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-md shadow-blue-500/5 shrink-0">
+                          <ArrowRightLeft className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">PROSEDUR RESMI</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Alur Transfer Antar Cabang</h3>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed text-left">
+                        <p>
+                          Aplikasi <span className="font-bold text-slate-800">ALFATH PULSA</span> menerapkan skema pengiriman instan langsung (<span className="text-blue-600 font-bold">Sender-Driven Direct Update</span>). Data stok diperbarui secara real-time demi kecepatan operasional konter pulsa.
+                        </p>
+                        
+                        <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] list-none font-medium">
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">1</span>
+                            <span>Kasir memilih menu <span className="font-bold">Transfer Stok</span> pada halaman kasir POS.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">2</span>
+                            <span>Kasir wajib memilih cabang tujuan, memilih produk aksesoris/voucher, serta nominal kuantitas secara teliti.</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">!</span>
+                            <span className="text-amber-800 font-black">Tombol Terkait</span> meminta konfirmasi klik tambahan (`window.confirm`) sebelum dieksekusi demi menjaga kelalaian input atau salah ketik.
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="w-4 h-4 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">✓</span>
+                            <span>Setelah disetujui, transaksi langsung mengurangi stok cabang pengirim dan menambah stok cabang penerima seketika di database utama.</span>
+                          </li>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                      <Info className="w-3.5 h-3.5 text-blue-500" /> Pengiriman instan menghindari penumpukan data tertunda
+                    </div>
+                  </div>
+
+                  {/* SECTION 2: KEAMANAN & CEGAH KEBOCORAN */}
+                  <div className="bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-md hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-3.5 mb-4 text-left">
+                        <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-md shadow-emerald-500/5 shrink-0">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SISTEM INTEGRITAS</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Pencegahan Kebocoran Stok</h3>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed text-left">
+                        <p>
+                          Sistem didesain dengan tingkat keamanan berlapis yang dimonitor ketat oleh Bapak <span className="font-bold text-slate-800">Ruly Agustian</span> selaku Pemilik.
+                        </p>
+                        
+                        <div className="grid grid-cols-1 gap-2 text-[11px]">
+                          <div className="flex gap-2.5 items-start bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                            <Lock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-black text-slate-800 uppercase tracking-tight text-[10px]/tight">Proteksi Hak Akses Lokasi</p>
+                              <p className="text-slate-500 mt-0.5">Karyawan kasir hanya dikunci (locked) pada cabang kerjanya masing-masing, tidak dapat merusak, mengubah atau menambah data gudang cabang lain.</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2.5 items-start bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-black text-slate-800 uppercase tracking-tight text-[10px]/tight">Sistem Blokir Minus (Zero-Minus-Check)</p>
+                              <p className="text-slate-500 mt-0.5">POS kasir memblokir transaksi jika stok di database tidak mencukupi, meminimalkan selisih fisik barang di toko.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-[#10b981] font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Sistem terpusat aman dari penyalahgunaan hak akses
+                    </div>
+                  </div>
+
+                  {/* SECTION 3: SINKRONISASI SHIFT & KAS */}
+                  <div className="bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-md hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-3.5 mb-4 text-left">
+                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-md shadow-indigo-500/5 shrink-0">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">KEDISIPLINAN FINANSIAL</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Alur Kas & Manajemen Shift</h3>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3 font-medium text-xs text-slate-600 leading-relaxed text-left">
+                        <p>
+                          Kedisiplinan mengelola sesi shift penjualan adalah kunci akurasi pembukuan harian.
+                        </p>
+                        
+                        <div className="space-y-2">
+                          <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                            <span className="font-black text-indigo-900 border-b border-indigo-200 pb-0.5 block mb-1 uppercase text-[9px]/tight tracking-widest">Sebelum Mulai Kerja (Buka Shift):</span>
+                            <span className="text-slate-500 block text-[11px] leading-tight">Wajib memverifikasi sisa kas modal fisik laci pembuka sesuai dengan data sistem penutupan shift sebelumnya.</span>
+                          </div>
+
+                          <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                            <span className="font-black text-indigo-900 border-b border-indigo-200 pb-0.5 block mb-1 uppercase text-[9px]/tight tracking-widest">Saat Selesai Kerja (Tutup Shift):</span>
+                            <span className="text-slate-500 block text-[11px] leading-tight">Hitung seluruh jumlah uang fisik di laci mesin kas secara presisi, lalu input ke sistem. Sistem akan otomatis melacak selisih (discrepancy) untuk dipertanggungjawabkan.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-indigo-500 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                      <Clock className="w-3.5 h-3.5 text-indigo-500" /> Melindungi saldo kasir dari kekeliruan kembalian
+                    </div>
+                  </div>
+
+                  {/* SECTION 4: SCANNER & RESILIENCE */}
+                  <div className="bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-md hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-3.5 mb-4 text-left">
+                        <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shadow-md shadow-purple-500/5 shrink-0">
+                          <ScanBarcode className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SENSING & SINKRONISASI</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Scanner & Ketahanan Offline</h3>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed text-left">
+                        <p>
+                          Sistem POS ditalas oleh teknologi pembacaan nirkabel dan toleran terhadap kendala jaringan internet di daerah setempat.
+                        </p>
+                        
+                        <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] font-medium text-slate-600">
+                          <p className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full shrink-0 mt-1.5"></span>
+                            <span><strong className="text-slate-800 font-black">Scanner Cepat (0.5 Detik):</strong> Memakai integrasi kamera web & scanner laser. Pemindaian barcode produk atau Master SN voucher internet langsung memasukkannya ke keranjang belanja POS seketika tanpa melambatkan interaksi pembeli.</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full shrink-0 mt-1.5"></span>
+                            <span><strong className="text-slate-800 font-black">Pencegahan Putus Koneksi:</strong> Transaksi di kasir tetap didukung secara lokal. Begitu perangkat pulih ke jaringan internet, antrean sinkronisator akan mendorong seluruh riwayat mutasi tanpa kehilangan data sekecil apa pun.</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-purple-500 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                      <ScanBarcode className="w-3.5 h-3.5 text-purple-500" /> Didukung teknologi modern PWA untuk semua jenis tipe gadget
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* HELP CARD BANNER */}
+                <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-6 text-left mb-8 shadow-sm">
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm shrink-0">
+                      <UserCircle className="w-6 h-6 text-slate-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Butuh Konsultasi Lebih Lanjut?</p>
+                      <p className="text-[11px] text-slate-500 mt-1 font-medium">Jika menemui selisih stok persediaan atau rincian error database yang serius, segera laporkan ke Bapak Ruly Agustian.</p>
+                    </div>
+                  </div>
+                  <div className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest text-slate-700 select-none shadow-sm shrink-0">
+                    SOP Versi 2.4 - Resmi
+                  </div>
+                </div>
               </div>
             )}
 
