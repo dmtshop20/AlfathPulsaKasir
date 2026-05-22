@@ -8392,20 +8392,20 @@ export default function App() {
             {activeMenu === "guide" && (
               <div className="flex-1 flex flex-col bg-slate-50 md:m-4 md:rounded shadow-sm border md:border-slate-200 overflow-y-auto custom-scrollbar p-3 md:p-6 text-left h-full">
                 {/* HERO BANNER & GREETING */}
-                <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl shadow-xl select-none mb-6 text-white text-left relative overflow-hidden">
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 md:p-8 rounded-3xl shadow-xl select-none mb-6 text-white text-left relative overflow-hidden">
                   <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
                   <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
                   
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                     <div className="space-y-2">
                       <div className="inline-flex items-center gap-2 bg-blue-500/20 px-3 py-1 rounded-full text-blue-300 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Dokumen Resmi Operasional
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-300" /> PANDUAN PENGGUNAAN & KEAMANAN STOK MULTI-CABANG
                       </div>
                       <h1 className="text-xl md:text-3xl font-black tracking-tight leading-none uppercase">
-                        Sistem Panduan & Keamanan Stok
+                        Sistem Optimalisasi & Transparansi Operasional
                       </h1>
                       <p className="text-slate-300 text-xs md:text-sm font-medium">
-                        Standard Operating Procedure (SOP) Manajemen Multi-Cabang ALFATH PULSA.
+                        Standard Operating Procedure (SOP) Profesionalitas & Integritas Kerja Konter ALFATH PULSA.
                       </p>
                     </div>
                     <div className="p-4 bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-700 shrink-0 text-left md:text-right min-w-[200px] shadow-lg">
@@ -8429,39 +8429,35 @@ export default function App() {
                           <ArrowRightLeft className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">PROSEDUR RESMI</p>
-                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Alur Transfer Antar Cabang</h3>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">REAL-TIME DATA</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Akurasi & Alur Mutasi Stok</h3>
                         </div>
                       </div>
                       
                       <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed text-left">
                         <p>
-                          Aplikasi <span className="font-bold text-slate-800">ALFATH PULSA</span> menerapkan skema pengiriman instan langsung (<span className="text-blue-600 font-bold">Sender-Driven Direct Update</span>). Data stok diperbarui secara real-time demi kecepatan operasional konter pulsa.
+                          Aplikasi <span className="font-bold text-slate-800">ALFATH PULSA</span> menerapkan sistem pembaruan instan (<span className="text-blue-600 font-bold">Direct Push Update</span>) sehingga seluruh perpindahan barang aksesoris dan voucher antar cabang terekam dengan akurasi absolut.
                         </p>
                         
                         <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] list-none font-medium">
                           <li className="flex items-start gap-2">
                             <span className="w-4 h-4 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">1</span>
-                            <span>Kasir memilih menu <span className="font-bold">Transfer Stok</span> pada halaman kasir POS.</span>
+                            <span>Akses menu <span className="font-bold">Transfer Stok</span> langsung pada halaman kasir POS Anda.</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="w-4 h-4 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">2</span>
-                            <span>Kasir wajib memilih cabang tujuan, memilih produk aksesoris/voucher, serta nominal kuantitas secara teliti.</span>
+                            <span>Pilih cabang tujuan penerima, ketik nama barang atau scan barcode kuantitas fisik secara teliti.</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="w-4 h-4 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">!</span>
-                            <span className="text-amber-800 font-black">Tombol Terkait</span> meminta konfirmasi klik tambahan (`window.confirm`) sebelum dieksekusi demi menjaga kelalaian input atau salah ketik.
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="w-4 h-4 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">✓</span>
-                            <span>Setelah disetujui, transaksi langsung mengurangi stok cabang pengirim dan menambah stok cabang penerima seketika di database utama.</span>
+                            <span className="text-amber-800">Sistem sengaja meminta konfirmasi dialog tambahan untuk melindungi Anda dari kelalaian input atau salah ketik kuantitas.</span>
                           </li>
                         </div>
                       </div>
                     </div>
                     
                     <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
-                      <Info className="w-3.5 h-3.5 text-blue-500" /> Pengiriman instan menghindari penumpukan data tertunda
+                      <Info className="w-3.5 h-3.5 text-blue-500" /> Mutasi instan meminimalkan risiko selisih stok manual
                     </div>
                   </div>
 
@@ -8474,13 +8470,13 @@ export default function App() {
                         </div>
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SISTEM INTEGRITAS</p>
-                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Pencegahan Kebocoran Stok</h3>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Keamanan Stok & Transparansi Bonus</h3>
                         </div>
                       </div>
                       
                       <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed text-left">
                         <p>
-                          Sistem didesain dengan tingkat keamanan berlapis yang dimonitor ketat oleh Bapak <span className="font-bold text-slate-800">Ruly Agustian</span> selaku Pemilik.
+                          Arsitektur sistem dibangun di atas basis aturan ketat agar <span className="font-bold text-slate-800">tidak terjadi stok berkurang atau berlebih secara liar</span>. Semuanya dihitung secara seimbang.
                         </p>
                         
                         <div className="grid grid-cols-1 gap-2 text-[11px]">
@@ -8488,15 +8484,15 @@ export default function App() {
                             <Lock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                             <div>
                               <p className="font-black text-slate-800 uppercase tracking-tight text-[10px]/tight">Proteksi Hak Akses Lokasi</p>
-                              <p className="text-slate-500 mt-0.5">Karyawan kasir hanya dikunci (locked) pada cabang kerjanya masing-masing, tidak dapat merusak, mengubah atau menambah data gudang cabang lain.</p>
+                              <p className="text-slate-500 mt-0.5">Akun kasir hanya dikunci (locked) untuk memodifikasi stok pada cabangnya masing-masing. Ini menjamin akuntabilitas mandiri tanpa interferensi luar.</p>
                             </div>
                           </div>
                           
                           <div className="flex gap-2.5 items-start bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            <TrendingUp className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                             <div>
-                              <p className="font-black text-slate-800 uppercase tracking-tight text-[10px]/tight">Sistem Blokir Minus (Zero-Minus-Check)</p>
-                              <p className="text-slate-500 mt-0.5">POS kasir memblokir transaksi jika stok di database tidak mencukupi, meminimalkan selisih fisik barang di toko.</p>
+                              <p className="font-black text-slate-800 uppercase tracking-tight text-[10px]/tight">Kalkulasi Komisi & Bonus Transparan</p>
+                              <p className="text-slate-500 mt-0.5">Setiap nominal insentif/bonus karyawan dihitung real-time & otomatis berdasarkan data murni log transaksi harian Anda. Adil, terbuka, tanpa potensi manipulasi sepihak.</p>
                             </div>
                           </div>
                         </div>
@@ -8504,7 +8500,7 @@ export default function App() {
                     </div>
                     
                     <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-[#10b981] font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Sistem terpusat aman dari penyalahgunaan hak akses
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Rekam jejak kerja Anda terlindungi oleh enkripsi sistem database resmi
                     </div>
                   </div>
 
@@ -8516,68 +8512,65 @@ export default function App() {
                           <Clock className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">KEDISIPLINAN FINANSIAL</p>
-                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Alur Kas & Manajemen Shift</h3>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">KEDISIPLINAN KASIR</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">SOP Wajib Tutup Shift Penjualan</h3>
                         </div>
                       </div>
                       
                       <div className="space-y-3 font-medium text-xs text-slate-600 leading-relaxed text-left">
                         <p>
-                          Kedisiplinan mengelola sesi shift penjualan adalah kunci akurasi pembukuan harian.
+                          Menutup sesi harian (<span className="text-indigo-600 font-bold">Tutup Shift</span>) sebelum meninggalkan konter adalah prosedur mutlak demi kebaikan finansial bersama.
                         </p>
                         
                         <div className="space-y-2">
-                          <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                            <span className="font-black text-indigo-900 border-b border-indigo-200 pb-0.5 block mb-1 uppercase text-[9px]/tight tracking-widest">Sebelum Mulai Kerja (Buka Shift):</span>
-                            <span className="text-slate-500 block text-[11px] leading-tight">Wajib memverifikasi sisa kas modal fisik laci pembuka sesuai dengan data sistem penutupan shift sebelumnya.</span>
-                          </div>
-
-                          <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                            <span className="font-black text-indigo-900 border-b border-indigo-200 pb-0.5 block mb-1 uppercase text-[9px]/tight tracking-widest">Saat Selesai Kerja (Tutup Shift):</span>
-                            <span className="text-slate-500 block text-[11px] leading-tight">Hitung seluruh jumlah uang fisik di laci mesin kas secara presisi, lalu input ke sistem. Sistem akan otomatis melacak selisih (discrepancy) untuk dipertanggungjawabkan.</span>
+                          <div className="p-3.5 bg-indigo-50/50 rounded-2xl border border-indigo-100/50 text-[11px]">
+                            <span className="font-black text-indigo-900 border-b border-indigo-200 pb-0.5 block mb-1 uppercase text-[9px]/tight tracking-widest">Aturan Rekonsiliasi Kas Bersahabat:</span>
+                            <span className="text-slate-500 block leading-normal mt-1">
+                              Melakukan pemeriksaan silang laci kas kasir sangat penting di akhir kerja. <strong className="text-indigo-950 font-bold">Harap dicatat:</strong> Adanya selisih laci (mismatch) fisik vs sistem <strong className="text-indigo-800">tidak pernah dianggap sebagai kelengahan atau kesalahan personal Anda</strong>. Selisih dipandang murni sebagai anomali operasional lapangan yang harus diselesaikan dan diteliti bersama secara kekeluargaan agar pembukuan tetap sehat dan seimbang.
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
                     
                     <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-indigo-500 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
-                      <Clock className="w-3.5 h-3.5 text-indigo-500" /> Melindungi saldo kasir dari kekeliruan kembalian
+                      <Clock className="w-3.5 h-3.5 text-indigo-500" /> Penutupan shift menjamin bonus kerja harian Anda terhitung utuh
                     </div>
                   </div>
 
-                  {/* SECTION 4: SCANNER & RESILIENCE */}
+                  {/* SECTION 4: SCANNER & ANOMALI SINKRONISASI */}
                   <div className="bg-white rounded-3xl p-5 md:p-6 border border-slate-200/80 shadow-md hover:shadow-lg transition-all flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-3.5 mb-4 text-left">
-                        <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shadow-md shadow-purple-500/5 shrink-0">
-                          <ScanBarcode className="w-5 h-5" />
+                        <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shadow-md shadow-rose-500/5 shrink-0">
+                          <AlertTriangle className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">SENSING & SINKRONISASI</p>
-                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Scanner & Ketahanan Offline</h3>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">RESPONS ANOMALI</p>
+                          <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">Penyelesaian Bug Sistem Tanpa Ragu</h3>
                         </div>
                       </div>
                       
                       <div className="space-y-3.5 text-xs text-slate-600 leading-relaxed text-left">
                         <p>
-                          Sistem POS ditalas oleh teknologi pembacaan nirkabel dan toleran terhadap kendala jaringan internet di daerah setempat.
+                          Sebagai pengguna garda terdepan, masukan rekan-rekan kasir sangat bernilai dalam menyempurnakan kualitas program komputer konter ALFATH PULSA.
                         </p>
                         
-                        <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] font-medium text-slate-600">
+                        <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] font-medium text-slate-600">
                           <p className="flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full shrink-0 mt-1.5"></span>
-                            <span><strong className="text-slate-800 font-black">Scanner Cepat (0.5 Detik):</strong> Memakai integrasi kamera web & scanner laser. Pemindaian barcode produk atau Master SN voucher internet langsung memasukkannya ke keranjang belanja POS seketika tanpa melambatkan interaksi pembeli.</span>
+                            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0 mt-1.5"></span>
+                            <span><strong className="text-slate-800 font-black">Laporkan Langsung ke Owner:</strong> Jika Anda mengalami ketidaksinkronan data, kejanggalan scanner, atau menduga adanya bug aplikasi, jangan ragu untuk segera mengabari <strong className="text-slate-800 font-bold">Bapak Ruly Agustian (Owner)</strong> secara langsung.</span>
                           </p>
                           <p className="flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full shrink-0 mt-1.5"></span>
-                            <span><strong className="text-slate-800 font-black">Pencegahan Putus Koneksi:</strong> Transaksi di kasir tetap didukung secara lokal. Begitu perangkat pulih ke jaringan internet, antrean sinkronisator akan mendorong seluruh riwayat mutasi tanpa kehilangan data sekecil apa pun.</span>
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0 mt-1.5"></span>
+                            <span><strong className="text-emerald-800 font-bold">Prasangka Baik & Dukungan Penuh:</strong> Setiap masukan/laporan bug teknis diapresiasi penuh sebagai bentuk kepedulian tinggi terhadap pertumbuhan konter. Kami menjamin tidak ada prasangka negatif apa pun dalam proses ini.</span>
                           </p>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-purple-500 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
-                      <ScanBarcode className="w-3.5 h-3.5 text-purple-500" /> Didukung teknologi modern PWA untuk semua jenis tipe gadget
+                    <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-rose-500 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-500" /> Komunikasi terbuka adalah pilar kenyamanan dan keamanan kerja kita
                     </div>
                   </div>
 
@@ -8590,12 +8583,12 @@ export default function App() {
                       <UserCircle className="w-6 h-6 text-slate-600" />
                     </div>
                     <div className="text-left">
-                      <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Butuh Konsultasi Lebih Lanjut?</p>
-                      <p className="text-[11px] text-slate-500 mt-1 font-medium">Jika menemui selisih stok persediaan atau rincian error database yang serius, segera laporkan ke Bapak Ruly Agustian.</p>
+                      <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Kanal Konsultasi & Paten Operasional</p>
+                      <p className="text-[11px] text-slate-500 mt-1 font-medium">Koordinasi yang hangat dan transparan dengan Bapak Ruly Agustian selalu didahulukan demi menyukseskan ALFATH PULSA bersama-sama.</p>
                     </div>
                   </div>
                   <div className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest text-slate-700 select-none shadow-sm shrink-0">
-                    SOP Versi 2.4 - Resmi
+                    SOP Versi 2.5 - Resmi (ALFATH)
                   </div>
                 </div>
               </div>
