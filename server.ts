@@ -663,10 +663,18 @@ app.get("/api/users", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/adjustments", authenticateToken, async (req, res) => {
+  const { branchId, limit } = req.query;
   try {
+    const where: any = {};
+    if (branchId) {
+      where.branchId = branchId as string;
+    }
+    const takeVal = limit ? parseInt(limit as string) : 200;
+
     const adjustments = await prisma.adjustment.findMany({
+      where,
       orderBy: { createdAt: "desc" },
-      take: 200, 
+      take: takeVal, 
     });
     res.json(adjustments);
   } catch (error) {

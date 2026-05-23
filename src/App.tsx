@@ -1232,6 +1232,7 @@ export default function App() {
     setIsSyncing(true);
     try {
       const isAdmin = profile.role === "ADMIN";
+      const isAudit = profile.role === "AUDIT";
       
       // Determine target branch for data sync
       let effectiveBranchId = profile.branchId;
@@ -1246,11 +1247,27 @@ export default function App() {
       const sData = await api.getSales({ branchId: effectiveBranchId, limit: 10 }).catch(e => { console.error("Sales Load Error:", e); return sales; });
       const cData = await api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; });
       
+      // Setup optimized queries based on user role
+      const shiftsPromise = api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; });
+      
+      const usersPromise = isAdmin 
+        ? api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; })
+        : Promise.resolve(users);
+
+      const adjParams: any = {};
+      if (effectiveBranchId) adjParams.branchId = effectiveBranchId;
+      adjParams.limit = isAdmin || isAudit ? 50 : 15;
+      const adjustmentsPromise = api.getAdjustments(adjParams).catch(e => { console.error("Adjustments Load Error:", e); return adjustments; });
+
+      const dailySummariesPromise = isAdmin
+        ? api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; })
+        : Promise.resolve(dailySummaries);
+      
       const [shData, uData, aData, dsData] = await Promise.all([
-        api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
-        api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
-        api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; }),
-        api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; })
+        shiftsPromise,
+        usersPromise,
+        adjustmentsPromise,
+        dailySummariesPromise
       ]);
       
       setProducts(pData);

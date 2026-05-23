@@ -274,8 +274,9 @@ export const api = {
     return res.json();
   },
 
-  async getAdjustments() {
-    const res = await fetch(`${BASE_URL}/adjustments`, {
+  async getAdjustments(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/adjustments?${query}`, {
       headers: getHeaders(),
     });
     if (!res.ok) { const txt = await res.text(); throw new Error(`Failed to fetch adjustments: ${res.status} ${txt}`); }
