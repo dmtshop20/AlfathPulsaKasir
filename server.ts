@@ -534,11 +534,8 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
       if (Object.keys(where.createdAt).length === 0) delete where.createdAt;
     }
 
-    const takeVal = limit ? parseInt(limit as string) : 10;
-
-    const sales = await prisma.sale.findMany({
+    const queryOptions: any = {
       where,
-      take: takeVal,
       include: { 
         items: { 
           include: { 
@@ -549,7 +546,13 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
         branch: true 
       },
       orderBy: { createdAt: "desc" }
-    });
+    };
+
+    if (limit) {
+      queryOptions.take = parseInt(limit as string);
+    }
+
+    const sales = await prisma.sale.findMany(queryOptions);
     res.json(sales);
   } catch (error: any) {
     console.error("Fetch Sales Error [Full]:", {
