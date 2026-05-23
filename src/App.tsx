@@ -1225,101 +1225,103 @@ export default function App() {
     return alertCount;
   }, [products, branches, stocks, profile, hiddenShoppingBranchIds]);
 
-  useEffect(() => {
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const loadData = async (forceSync = false) => {
     if (!profile || profile.role === "PENDING") return;
-
-    const isAdmin = profile.role === "ADMIN";
-    
-    // Determine target branch for data sync
-    let effectiveBranchId = profile.branchId;
-    if (activeMenu === "audit") {
-      effectiveBranchId = auditSelectedBranch || (isAdmin ? "" : "N/A");
-    } else if (isAdmin) {
-      effectiveBranchId = adminSalesBranchFilter;
-    }
-
-    const loadData = async () => {
-      try {
-        // Memuat sebagian secara parallel, sebagian berurutan agar tidak overload koneksi
-        const pData = await api.getProducts().catch(e => { console.error("Products Load Error:", e); return products; });
-        const sData = await api.getSales({ branchId: effectiveBranchId }).catch(e => { console.error("Sales Load Error:", e); return sales; });
-        const cData = await api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; });
-        
-        const [shData, uData, aData, dsData] = await Promise.all([
-          api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
-          api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
-          api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; }),
-          api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; })
-        ]);
-        
-        setProducts(pData);
-        setSales(sData);
-        setCommissions(cData);
-        setShifts(shData);
-        setUsers(uData);
-        setAdjustments(aData);
-        setDailySummaries(dsData || []);
-        
-        // --- RESTORE OPEN SHIFT FROM DATABASE ---
-        if (profile?.branchId) {
-          const openShift = shData.find((s: any) => s.status === "open" && s.branchId === profile?.branchId);
-          
-          if (openShift) {
-             setShiftOpen(true);
-             const type = openShift.shiftType || "Pagi";
-             let parsedType = type;
-             let parsedName = openShift.cashier?.name || "Kasir";
-             if (type.includes(" - ")) {
-                 const parts = type.split(" - ");
-                 parsedType = parts[0];
-                 parsedName = parts[1];
-             }
-             setShiftType(parsedType as any);
-             setCashierName(parsedName);
-             setShiftStartTime(openShift.openTime);
-             setShiftLogicalDate(openShift.shiftDate);
-             
-             localStorage.setItem("shift_open", "true");
-             localStorage.setItem("current_shift_id", openShift.id);
-             localStorage.setItem("shift_type", parsedType);
-             localStorage.setItem("cashier_name", parsedName);
-             localStorage.setItem("shift_start_time", openShift.openTime);
-             localStorage.setItem("shift_logical_date", openShift.shiftDate);
-          } else {
-             // Jika di lokal buka pencatuman, tapi di DB sudah tutup/hapus, maka sinkronisasi paksa
-             if (localStorage.getItem("shift_open") === "true") {
-                 setShiftOpen(false);
-                 setCashierName("");
-                 setShiftType(null);
-                 setShiftStartTime(null);
-                 localStorage.removeItem("shift_open");
-                 localStorage.removeItem("current_shift_id");
-             }
-          }
-        }
-        
-        // Also sync commission summaries
-        if (isAdmin) {
-          syncCommissionsSummary(); // Get global summary for owner
-        } else {
-          syncCommissionsSummary(profile?.branchId || undefined); // Get branch summary for cashier
-        }
-      } catch (err) {
-        console.error("General data load error:", err);
+    setIsSyncing(true);
+    try {
+      const isAdmin = profile.role === "ADMIN";
+      
+      // Determine target branch for data sync
+      let effectiveBranchId = profile.branchId;
+      if (activeMenu === "audit") {
+        effectiveBranchId = auditSelectedBranch || (isAdmin ? "" : "N/A");
+      } else if (isAdmin) {
+        effectiveBranchId = adminSalesBranchFilter;
       }
-    };
 
+      // Memuat sebagian secara parallel, sebagian berurutan agar tidak overload koneksi
+      const pData = await api.getProducts().catch(e => { console.error("Products Load Error:", e); return products; });
+      const sData = await api.getSales({ branchId: effectiveBranchId, limit: 10 }).catch(e => { console.error("Sales Load Error:", e); return sales; });
+      const cData = await api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; });
+      
+      const [shData, uData, aData, dsData] = await Promise.all([
+        api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
+        api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
+        api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; }),
+        api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; })
+      ]);
+      
+      setProducts(pData);
+      setSales(sData);
+      setCommissions(cData);
+      setShifts(shData);
+      setUsers(uData);
+      setAdjustments(aData);
+      setDailySummaries(dsData || []);
+      
+      // --- RESTORE OPEN SHIFT FROM DATABASE ---
+      if (profile?.branchId) {
+        const openShift = shData.find((s: any) => s.status === "open" && s.branchId === profile?.branchId);
+        
+        if (openShift) {
+           setShiftOpen(true);
+           const type = openShift.shiftType || "Pagi";
+           let parsedType = type;
+           let parsedName = openShift.cashier?.name || "Kasir";
+           if (type.includes(" - ")) {
+               const parts = type.split(" - ");
+               parsedType = parts[0];
+               parsedName = parts[1];
+           }
+           setShiftType(parsedType as any);
+           setCashierName(parsedName);
+           setShiftStartTime(openShift.openTime);
+           setShiftLogicalDate(openShift.shiftDate);
+           
+           localStorage.setItem("shift_open", "true");
+           localStorage.setItem("current_shift_id", openShift.id);
+           localStorage.setItem("shift_type", parsedType);
+           localStorage.setItem("cashier_name", parsedName);
+           localStorage.setItem("shift_start_time", openShift.openTime);
+           localStorage.setItem("shift_logical_date", openShift.shiftDate);
+        } else {
+           // Jika di lokal buka pencatuman, tapi di DB sudah tutup/hapus, maka sinkronisasi paksa
+           if (localStorage.getItem("shift_open") === "true") {
+               setShiftOpen(false);
+               setCashierName("");
+               setShiftType(null);
+               setShiftStartTime(null);
+               localStorage.removeItem("shift_open");
+               localStorage.removeItem("current_shift_id");
+           }
+        }
+      }
+      
+      // Also sync commission summaries
+      if (isAdmin) {
+        syncCommissionsSummary(); // Get global summary for owner
+      } else {
+        syncCommissionsSummary(profile?.branchId || undefined); // Get branch summary for cashier
+      }
+
+      if (forceSync) {
+        setGlobalAlerts(prev => [...prev, { 
+          id: Date.now().toString(), 
+          message: "Data Berhasil Disegarkan!", 
+          type: "success" 
+        }]);
+      }
+    } catch (err) {
+      console.error("General data load error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
-
-    // Setup Sockets for real-time updates
-    const socket = io();
-    socket.on("saleProcessed", () => loadData());
-    socket.on("productUpdated", () => loadData());
-    socket.on("stockUpdated", () => loadData());
-
-    return () => {
-      socket.disconnect();
-    };
   }, [
     profile?.id, profile?.role, profile?.branchId, 
     activeMenu === "dashboard", activeMenu === "audit", activeMenu === "reports", 
@@ -2946,6 +2948,15 @@ export default function App() {
                   {isOnline ? "Sistem Online" : "Koneksi Bermasalah"}
                 </span>
               </div>
+              <button
+                onClick={() => loadData(true)}
+                disabled={isSyncing}
+                className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 shrink-0 shadow-sm cursor-pointer transition-all disabled:opacity-50 text-[10px] font-black uppercase tracking-widest cursor-pointer"
+                title="Segarkan Data"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-blue-500 ${isSyncing ? "animate-spin" : ""}`} />
+                <span className="hidden xs:inline">Segarkan</span>
+              </button>
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 className="flex items-center justify-center h-8.5 w-8.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 shrink-0 shadow-sm cursor-pointer transition-all"

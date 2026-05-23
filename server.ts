@@ -515,7 +515,7 @@ app.post("/api/transactions", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/transactions", authenticateToken, async (req, res) => {
-  const { branchId, startDate, endDate } = req.query;
+  const { branchId, startDate, endDate, limit } = req.query;
   try {
     const where: any = {};
     if (branchId) where.branchId = branchId as string;
@@ -534,8 +534,11 @@ app.get("/api/transactions", authenticateToken, async (req, res) => {
       if (Object.keys(where.createdAt).length === 0) delete where.createdAt;
     }
 
+    const takeVal = limit ? parseInt(limit as string) : 10;
+
     const sales = await prisma.sale.findMany({
       where,
+      take: takeVal,
       include: { 
         items: { 
           include: { 
