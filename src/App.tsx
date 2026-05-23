@@ -487,6 +487,7 @@ export default function App() {
     | "reports"
     | "incentive"
     | "guide"
+    | "about"
   >("dashboard");
   const [auditSidebarTab, setAuditSidebarTab] = useState<
     "incoming" | "disposal" | "transfer" | "logs"
@@ -2454,6 +2455,8 @@ export default function App() {
         return "Bonus & Insentif Karyawan";
       case "guide":
         return "Buku Panduan & Keamanan Kerja";
+      case "about":
+        return "Tentang Aplikasi & Hak Cipta";
       default:
         return String(activeMenu || "ALFATH PULSA").toUpperCase();
     }
@@ -2831,6 +2834,15 @@ export default function App() {
               active={activeMenu === "guide"}
               onClick={() => {
                 setActiveMenu("guide");
+                setIsSidebarOpen(false);
+              }}
+            />
+            <MenuItem
+              icon={ShieldCheck}
+              label="Tentang Aplikasi"
+              active={activeMenu === "about"}
+              onClick={() => {
+                setActiveMenu("about");
                 setIsSidebarOpen(false);
               }}
             />
@@ -8591,6 +8603,69 @@ export default function App() {
                   </div>
                   <div className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest text-slate-700 select-none shadow-sm shrink-0">
                     SOP Versi 2.5 - Resmi (ALFATH)
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* --- SYSTEM: TENTANG APLIKASI & LISENSI PENGEBANG --- */}
+            {activeMenu === "about" && (
+              <div className="flex-1 flex flex-col bg-slate-50 md:m-4 md:rounded shadow-sm border md:border-slate-200 overflow-y-auto custom-scrollbar p-4 md:p-8 text-left h-full">
+                <div className="max-w-3xl mx-auto w-full space-y-6">
+                  {/* Card Tentang Pengembang & Hak Cipta */}
+                  <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-950 p-6 md:p-8 rounded-[32px] text-white border border-slate-800 shadow-xl overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full -ml-16 -mb-16 blur-2xl pointer-events-none"></div>
+                    
+                    <div className="relative z-10 space-y-6">
+                      <div className="flex items-center gap-3.5 border-b border-white/10 pb-4">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-400/20 shadow-inner">
+                          <ShieldCheck className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black tracking-[0.2em] text-indigo-400 uppercase">IDENTITAS & PROTEKSI HAK CIPTA</p>
+                          <h3 className="text-xs font-black uppercase tracking-tight text-white mt-0.5">Tentang Aplikasi & Lisensi Pengembang</h3>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 text-xs font-normal text-slate-300 leading-relaxed">
+                        <p>
+                          Aplikasi <span className="font-bold text-white uppercase tracking-wider">ALFATH PULSA (SOP POS System)</span> ditenagai oleh struktur basis data real-time dan dirancang khusus untuk mempermudah, merapikan, serta mengamankan jalannya arus transaksi kasir antar cabang perusahaan.
+                        </p>
+
+                        <div className="bg-white/5 border border-white/10 p-5 rounded-2xl md:rounded-3xl space-y-3.5 text-[11px] backdrop-blur-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-white/5 pb-2">
+                            <span className="font-bold text-indigo-300 uppercase tracking-wider text-[9px]">Nama Pengembang</span>
+                            <span className="font-black text-white text-xs text-right">TEDI MUSTOPA</span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-white/5 pb-2">
+                            <span className="font-bold text-indigo-300 uppercase tracking-wider text-[9px]">Status / Peran</span>
+                            <span className="font-black text-slate-200 text-right">Karyawan & Pengembang Sistem Mandiri</span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                            <span className="font-bold text-indigo-300 uppercase tracking-wider text-[9px]">Tujuan Sistem</span>
+                            <span className="font-bold text-slate-200 text-right sm:max-w-xs">
+                              Optimalisasi & Transparansi Laporan Kasir Antar Cabang
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-[11px] text-indigo-200 space-y-2">
+                          <p className="font-black text-indigo-300 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-indigo-400" /> Deklarasi Lisensi & Hak Cipta:
+                          </p>
+                          <p className="leading-relaxed">
+                            Kepemilikan kode sumber, lisensi program, dan hak cipta penuh atas kekayaan intelektual (IP) sistem digital ini <strong className="text-white font-bold">100% melekat pada Tedi Mustopa</strong> sebagai pencipta dan pengembang utama. Seluruh operasional, pendistribusian, penyewaan (SaaS), maupun penggunaan sistem di luar platform ALFATH PULSA resmi wajib atas persetujuan atau izin tertulis langsung dari pengembang.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-white/10 text-[9px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></span>
+                        Kode & Hak Milik Intelektual Dilindungi Hukum • Hak Cipta © {new Date().getFullYear()} Tedi Mustopa
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
