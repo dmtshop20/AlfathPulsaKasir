@@ -90,6 +90,14 @@ import { useBarcodeScanner } from "./hooks/useBarcodeScanner";
 
 import { ProductTable } from "./components/ProductTable";
 import { CustomSelect } from "./components/CustomSelect";
+
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number) {
+  let timeout: any;
+  return function(...args: Parameters<T>) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
 const ScannerModal = ({
   onClose,
   onScan,
@@ -1232,6 +1240,8 @@ export default function App() {
     setIsSyncing(true);
     try {
       const isAdmin = profile.role === "ADMIN";
+      const isAudit = profile.role === "AUDIT";
+      const isCashier = profile.role === "CASHIER";
       
       // Determine target branch for data sync
       let effectiveBranchId = profile.branchId;
@@ -1241,16 +1251,52 @@ export default function App() {
         effectiveBranchId = adminSalesBranchFilter;
       }
 
-      // Memuat sebagian secara parallel, sebagian berurutan agar tidak overload koneksi
+      // 1. Optimize stock adjustments retrieval (only fetch recent 25 for cashier, 150 for others)
+      const adjustmentsParams: any = {};
+      if (effectiveBranchId) adjustmentsParams.branchId = effectiveBranchId;
+      adjustmentsParams.limit = isCashier ? 25 : 150;
+
+      // 2. Optimize sales list retrieval to prevent historical data overload
+      const salesParams: any = {};
+      if (effectiveBranchId) salesParams.branchId = effectiveBranchId;
+
+      if (isCashier) {
+        // Jika kasir sedang buka shift, tarik SELURUH transaksi sejak waktu shift dibuka (tanpa batasan limit)
+        // Hal ini untuk menjamin nominal omzet draf penutupan & riwayat shift selalu 100% sinkron (tidak terpotong jika > 100 transaksi)
+        if (shiftOpen && shiftStartTime) {
+          salesParams.startDate = shiftStartTime;
+        } else {
+          salesParams.limit = 100;
+        }
+      } else if (activeMenu === "reports") {
+        if (reportStartDate) salesParams.startDate = reportStartDate;
+        if (reportEndDate) salesParams.endDate = reportEndDate;
+        if (!reportStartDate && !reportEndDate) {
+          salesParams.limit = 500; // Limit reports list when no dates are set
+        }
+      } else {
+        // Admin Dashboard / default view feeds
+        salesParams.limit = 200;
+      }
+
+      // Core queries run in parallel
       const pData = await api.getProducts().catch(e => { console.error("Products Load Error:", e); return products; });
-      const sData = await api.getSales({ branchId: effectiveBranchId }).catch(e => { console.error("Sales Load Error:", e); return sales; });
+      const sData = await api.getSales(salesParams).catch(e => { console.error("Sales Load Error:", e); return sales; });
       const cData = await api.getCommissions({ branchId: effectiveBranchId }).catch(e => { console.error("Commissions Load Error:", e); return commissions; });
       
+      // Conditionally load static users list or admin-only summaries to save massive ingress/egress load on shifts
+      const shouldLoadUsers = users.length === 0 || forceSync || activeMenu === "employees" || isAdmin || isAudit;
+      const shouldLoadDailySummaries = !isCashier && (activeMenu === "dashboard" || activeMenu === "reports" || dailySummaries.length === 0 || forceSync);
+
       const [shData, uData, aData, dsData] = await Promise.all([
         api.getShifts({ branchId: effectiveBranchId }).catch(e => { console.error("Shifts Load Error:", e); return shifts; }),
-        api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }),
-        api.getAdjustments().catch(e => { console.error("Adjustments Load Error:", e); return adjustments; }),
-        api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; })
+        shouldLoadUsers 
+          ? api.getUsers().catch(e => { console.error("Users Load Error:", e); return users; }) 
+          : Promise.resolve(users),
+        api.getAdjustments(adjustmentsParams).catch(e => { console.error("Adjustments Load Error:", e); return adjustments; }),
+        shouldLoadDailySummaries 
+          ? api.getDailySummaries().catch(e => { console.error("Daily Summaries Load Error:", e); return dailySummaries; }) 
+          : Promise.resolve(dailySummaries)
       ]);
       
       setProducts(pData);
@@ -1325,9 +1371,34 @@ export default function App() {
 
     // Setup Sockets for real-time updates
     const socket = io();
-    socket.on("saleProcessed", () => loadData());
-    socket.on("productUpdated", () => loadData());
-    socket.on("stockUpdated", () => loadData());
+    
+    // Debounce the loader by 2.5 seconds to batch rapid/consecutive updates into a single load
+    const debouncedLoadData = debounce(() => loadData(), 2500);
+
+    socket.on("saleProcessed", (data?: { branchId?: string }) => {
+      // If we are an active cashier, only reload if the sale occurred in our branch!
+      // (Stock quantities for all other branches are already updated in-memory by the other socket listener)
+      if (profile?.role === "CASHIER" && profile?.branchId) {
+        if (data && data.branchId && data.branchId !== profile.branchId) {
+          return;
+        }
+      }
+      debouncedLoadData();
+    });
+
+    socket.on("productUpdated", () => {
+      debouncedLoadData();
+    });
+
+    socket.on("stockUpdated", (data?: { branchId?: string }) => {
+      // If we are an active cashier, only reload if stock belongs to our branch or transfer
+      if (profile?.role === "CASHIER" && profile?.branchId) {
+        if (data && data.branchId && data.branchId !== profile.branchId) {
+          return;
+        }
+      }
+      debouncedLoadData();
+    });
 
     return () => {
       socket.disconnect();

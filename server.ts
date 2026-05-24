@@ -504,6 +504,7 @@ app.post("/api/transactions", authenticateToken, async (req, res) => {
     // CRITICAL: Emit real-time stock update notification
     io.emit("saleProcessed", {
       saleId: result.id,
+      branchId: actualBranchId,
       items: items.map((i: any) => ({ productId: i.productId, branchId: actualBranchId, qty: i.qty }))
     });
 
