@@ -8635,6 +8635,28 @@ export default function App() {
                               Melakukan pemeriksaan silang laci kas kasir sangat penting di akhir kerja. <strong className="text-indigo-950 font-bold">Harap dicatat:</strong> Adanya selisih laci (mismatch) fisik vs sistem <strong className="text-indigo-800">tidak pernah dianggap sebagai kelengahan atau kesalahan personal Anda</strong>. Selisih dipandang murni sebagai anomali operasional lapangan yang harus diselesaikan dan diteliti bersama secara kekeluargaan agar pembukuan tetap sehat dan seimbang.
                             </span>
                           </div>
+
+                          <div className="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-100/80 text-[11px]">
+                            <span className="font-black text-amber-900 border-b border-amber-200 pb-0.5 block mb-1.5 uppercase text-[9px]/tight tracking-widest flex items-center gap-1">
+                              📌 ATURAN DISIPLIN JAM BATAS TUTUP SHIFT:
+                            </span>
+                            <span className="text-slate-600 block leading-normal">
+                              Untuk menjaga validitas laporan harian, akurasi stok, dan perhitungan komisi yang adil, berlaku batasan waktu ketat bagi pergantian shift:
+                            </span>
+                            <div className="mt-2 space-y-1.5 text-slate-700 bg-white/50 p-2 rounded-xl border border-amber-100">
+                              <p className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-800">🌙 Shift Malam (Overnight)</span>
+                                <span className="font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">Wajib Tutup Setelah Melewati Jam 07:00 Pagi</span>
+                              </p>
+                              <p className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-800">☀️ Shift Pagi (Daytime)</span>
+                                <span className="font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">Wajib Tutup Setelah Melewati Jam 19:00 Malam</span>
+                              </p>
+                            </div>
+                            <span className="text-slate-500 block leading-normal mt-2.5">
+                              ⚠️ <strong className="text-slate-800">Verifikasi Mode Shift Sesuai:</strong> Saat membuka shift baru, selalu pastikan Anda memilih <strong className="text-indigo-950 font-bold">Mode Shift yang Sesuai (Pagi / Malam)</strong>. Kelalaian dalam mencocokkan tipe shift akan merusak rekonsiliasi kas dan dapat menunda pencairan bonus komisi harian Anda.
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
