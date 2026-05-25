@@ -8641,7 +8641,7 @@ export default function App() {
                               📌 ATURAN DISIPLIN JAM BATAS TUTUP SHIFT:
                             </span>
                             <span className="text-slate-600 block leading-normal">
-                              Untuk menjaga validitas laporan harian, akurasi stok, dan perhitungan komisi yang adil, berlaku batasan waktu ketat bagi pergantian shift:
+                              Untuk menjaga konsistensi operasional, akurasi stok, keandalan sistem laporan keuangan, dan kedisiplinan kerja, setiap karyawan wajib menaati batas koordinasi waktu shift:
                             </span>
                             <div className="mt-2 space-y-1.5 text-slate-700 bg-white/50 p-2 rounded-xl border border-amber-100">
                               <p className="flex items-center justify-between text-[11px]">
@@ -8654,7 +8654,7 @@ export default function App() {
                               </p>
                             </div>
                             <span className="text-slate-500 block leading-normal mt-2.5">
-                              ⚠️ <strong className="text-slate-800">Verifikasi Mode Shift Sesuai:</strong> Saat membuka shift baru, selalu pastikan Anda memilih <strong className="text-indigo-950 font-bold">Mode Shift yang Sesuai (Pagi / Malam)</strong>. Kelalaian dalam mencocokkan tipe shift akan merusak rekonsiliasi kas dan dapat menunda pencairan bonus komisi harian Anda.
+                              ⚠️ <strong className="text-slate-800">Verifikasi Mode Shift Sesuai:</strong> Saat membuka shift baru, selalu pastikan Anda memilih <strong className="text-indigo-950 font-bold">Mode Shift yang Sesuai (Pagi / Malam)</strong>. Kelalaian dalam mencocokkan tipe shift akan merusak rekonsiliasi kas dan menghambat keakuratan integrasi pembukuan harian.
                             </span>
                           </div>
                         </div>
@@ -8662,7 +8662,7 @@ export default function App() {
                     </div>
                     
                     <div className="mt-5 pt-4 border-t border-slate-100 text-[10px] text-indigo-500 font-bold uppercase tracking-widest flex items-center gap-1.5 justify-start">
-                      <Clock className="w-3.5 h-3.5 text-indigo-500" /> Penutupan shift menjamin bonus kerja harian Anda terhitung utuh
+                      <Clock className="w-3.5 h-3.5 text-indigo-500" /> KEDISIPLINAN PERGANTIAN SHIFT MENJAGA KONSISTENSI OPERASIONAL CABANG
                     </div>
                   </div>
 
